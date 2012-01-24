@@ -7,36 +7,60 @@ module lm32_test_top (
 	wire rst_vw;
 	virtual_wire # (.PROBE_WIDTH(0), .WIDTH(1), .INSTANCE_ID("RSET")) rst_vw_blk (.probe(), .source(rst_vw));
 
+	// RAM		0x00000000 (shadow @0x80000000)
 	// Ethernet	0x10000000 (shadow @0xb0000000)
 	// CSR bridge   0x60000000 (shadow @0xe0000000)
 	wire sys_rst = ~rst_vw;
 	wire sys_clk = clk50;
 
-	wire [31:0]	ebr_adr,
+	wire [31:0]	cpuibus_adr,
+			cpudbus_adr,
+			ebr_adr,
 			csrbrg_adr;
 	
 	wire [31:0]	cpuibus_dat_r,
+			cpuibus_dat_w,
+			cpudbus_dat_r,
+			cpudbus_dat_w,
 			csrbrg_dat_r,
 			csrbrg_dat_w,
 			ebr_dat_w,
 			ebr_dat_r;
 	
-	wire		ebr_cti;
+	wire [2:0]	cpuibus_cti,
+			cpudbus_cti,
+			ebr_cti;
 
-	wire [3:0]	ebr_sel;
+`ifdef CFG_HW_DEBUG_ENABLED
+	wire [3:0]	cpuibus_sel;
+`endif
+	wire [3:0]	cpudbus_sel,
+			ebr_sel;
 
+`ifdef CFG_HW_DEBUG_ENABLED
+	wire		cpuibus_we;
+`endif
 	wire		csrbrg_we,
+			cpudbus_we,
 			ebr_we;
 	
-	wire 		csrbrg_cyc,
+	wire 		cpuibus_cyc,
+			cpudbus_cyc,
+			csrbrg_cyc,
 			ebr_cyc;
 	
-	wire		csrbrg_stb,
+	wire		cpuibus_stb,
+			cpudbus_stb,
+			csrbrg_stb,
 			ebr_stb;
 	
 	wire		cpuibus_ack,
+			cpudbus_ack,
 			csrbrg_ack,
 			ebr_ack;
+	
+	wire		cpuibus_err = 1'b0,
+			cpudbus_err = 1'b0;
 
 
 	conbus5x6 #(
@@ -47,26 +71,35 @@ module lm32_test_top (
 		.sys_rst(sys_rst),
 
 		// Master 0
+`ifdef CFG_HW_DEBUG_ENABLED
 		.m0_dat_i(cpuibus_dat_w),
+`else
+		.m0_dat_i(32'hx),
+`endif
 		.m0_dat_o(cpuibus_dat_r),
 		.m0_adr_i(cpuibus_adr),
-		.m0_cti_i(),
+		.m0_cti_i(cpuibus_cti),
+`ifdef CFG_HW_DEBUG_ENABLED
 		.m0_we_i(cpuibus_we),
+		.m0_sel_i(cpuibus_sel),
+`else
+		.m0_we_i(1'b0),
 		.m0_sel_i(4'hf),
+`endif
 		.m0_cyc_i(cpuibus_cyc),
 		.m0_stb_i(cpuibus_stb),
 		.m0_ack_o(cpuibus_ack),
 
 		// Master 1
-		.m1_dat_i(),
-		.m1_dat_o(),
-		.m1_adr_i(),
-		.m1_cti_i(),
-		.m1_we_i(1'b0),
-		.m1_sel_i(4'hf),
-		.m1_cyc_i(1'b0),
-		.m1_stb_i(1'b0),
-		.m1_ack_o(),
+		.m1_dat_i(cpudbus_dat_w),
+		.m1_dat_o(cpudbus_dat_r),
+		.m1_adr_i(cpudbus_adr),
+		.m1_cti_i(cpudbus_cti),
+		.m1_we_i(cpudbus_we),
+		.m1_sel_i(cpudbus_sel),
+		.m1_cyc_i(cpudbus_cyc),
+		.m1_stb_i(cpudbus_stb),
+		.m1_ack_o(cpudbus_ack),
 
 		// Master 2
 		.m2_dat_i(),
@@ -237,74 +270,52 @@ module lm32_test_top (
 
 
 	//// CPU
-	reg [31:0]	cpuibus_adr = 0, cpuibus_dat_w = 0;
-	reg cpuibus_we = 0, cpuibus_cyc = 0, cpuibus_stb = 0;
-	reg [31:0] cpu_r0 = 0;
+	lm32_top cpu(
+		.clk_i (sys_clk),
+		.rst_i (sys_rst),
+		.interrupt (32'h00000000),
 
-	reg [31:0] cpu_state = 0;
+		.I_ADR_O(cpuibus_adr),
+		.I_DAT_I(cpuibus_dat_r),
+`ifdef CFG_HW_DEBUG_ENABLED
+		.I_DAT_O(cpuibus_dat_w),
+		.I_SEL_O(cpuibus_sel),
+`else
+		.I_DAT_O(),
+		.I_SEL_O(),
+`endif
+		.I_CYC_O(cpuibus_cyc),
+		.I_STB_O(cpuibus_stb),
+		.I_ACK_I(cpuibus_ack),
+`ifdef CFG_HW_DEBUG_ENABLED
+		.I_WE_O(cpuibus_we),
+`else
+		.I_WE_O(),
+`endif
+		.I_CTI_O(cpuibus_cti),
+		.I_LOCK_O(),
+		.I_BTE_O(),
+		.I_ERR_I(cpuibus_err),
+		.I_RTY_I(1'b0),
+`ifdef CFG_EXTERNAL_BREAK_ENABLED
+		.ext_break(ext_break),
+`endif
 
+		.D_ADR_O(cpudbus_adr),
+		.D_DAT_I(cpudbus_dat_r),
+		.D_DAT_O(cpudbus_dat_w),
+		.D_SEL_O(cpudbus_sel),
+		.D_CYC_O(cpudbus_cyc),
+		.D_STB_O(cpudbus_stb),
+		.D_ACK_I(cpudbus_ack),
+		.D_WE_O (cpudbus_we),
+		.D_CTI_O(cpudbus_cti),
+		.D_LOCK_O(),
+		.D_BTE_O(),
+		.D_ERR_I(cpudbus_err),
+		.D_RTY_I(1'b0)
+	);
 	
-	always @ (posedge sys_clk)
-	begin
-		if (sys_rst)
-			cpu_state = 0;
-		else
-		begin
-		case(cpu_state)
-			0: cpu_state = 1;
-			1: cpu_state = 2;
-			2: begin
-				cpuibus_we = 0;
-				cpuibus_adr = 32'h00000000;
-				cpuibus_cyc = 1;
-				cpuibus_stb = 1;
-				cpu_state = 3;
-			end
-			3: begin
-				if (cpuibus_ack)
-				begin
-					cpu_r0 = cpuibus_dat_r;
-					cpuibus_cyc = 0;
-					cpuibus_stb = 0;
-					cpu_state = 4;
-				end
-			end
-			4: begin
-				cpuibus_we = 1;
-				cpuibus_adr = 32'h00000000;
-				cpuibus_dat_w = cpu_r0 + 1;
-				cpuibus_cyc = 1;
-				cpuibus_stb = 1;
-				cpu_state = cpu_state + 1;
-			end
-			5: begin
-				if (cpuibus_ack)
-				begin
-					cpuibus_cyc = 0;
-					cpuibus_stb = 0;
-					cpu_state = cpu_state + 1;
-				end
-			end
-			6: begin
-				cpuibus_we = 1;
-				cpuibus_adr = 32'h60001004;
-				cpuibus_dat_w = cpu_r0;
-				cpuibus_cyc = 1;
-				cpuibus_stb = 1;
-				cpu_state = cpu_state + 1;
-			end
-			7: begin
-				if (cpuibus_ack)
-				begin
-					cpuibus_cyc = 0;
-					cpuibus_stb = 0;
-					cpu_state = cpu_state + 1;
-				end
-			end
-			8: cpu_state = 0;
-		endcase
-		end
-	end
 
 endmodule
 

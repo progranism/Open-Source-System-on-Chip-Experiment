@@ -98,15 +98,15 @@ module wb_ebr_ctrl
       end
    endfunction // clogb2
 
-   parameter UDLY = 1;
-   parameter EBR_WB_ADR_WIDTH = (EBR_WB_DAT_WIDTH == 8) ? clogb2(SIZE) : clogb2(SIZE/4);
-   parameter EBR_ADDR_DEPTH = (EBR_WB_DAT_WIDTH == 8) ? SIZE : SIZE/4;
-   parameter ST_IDLE  = 3'b000;
-   parameter ST_BURST = 3'b001;
-   parameter ST_END   = 3'b010;
-   parameter ST_SUBRD = 3'b100;
-   parameter ST_SUB   = 3'b101;
-   parameter ST_SUBWR = 3'b110;
+   localparam UDLY = 1;
+   localparam EBR_WB_ADR_WIDTH = (EBR_WB_DAT_WIDTH == 8) ? clogb2(SIZE) : clogb2(SIZE/4);
+   localparam EBR_ADDR_DEPTH = (EBR_WB_DAT_WIDTH == 8) ? SIZE : SIZE/4;
+   localparam ST_IDLE  = 3'b000;
+   localparam ST_BURST = 3'b001;
+   localparam ST_END   = 3'b010;
+   localparam ST_SUBRD = 3'b100;
+   localparam ST_SUB   = 3'b101;
+   localparam ST_SUBWR = 3'b110;
    
    generate
       

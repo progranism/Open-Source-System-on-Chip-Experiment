@@ -1,0 +1,2 @@
+lm32-elf-gcc -Wall -O3 -mmultiply-enabled -mbarrel-shift-enabled -ffunction-sections -o hello.o -c hello.c
+lm32-elf-gcc -Wall -O3 -mmultiply-enabled -mbarrel-shift-enabled -ffunction-sections -T linker.ld -o hello.elf hello.o -lm -lc -lgcc -lnosys -Wl,--gc-sections
