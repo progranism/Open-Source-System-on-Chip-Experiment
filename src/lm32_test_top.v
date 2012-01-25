@@ -8,13 +8,14 @@ module lm32_test_top (
 	virtual_wire # (.PROBE_WIDTH(0), .WIDTH(1), .INSTANCE_ID("RSET")) rst_vw_blk (.probe(), .source(rst_vw));
 
 	// RAM		0x00000000 (shadow @0x80000000)
-	// Ethernet	0x10000000 (shadow @0xb0000000)
+	// Debug	0x10000000 (shadow @0xb0000000)
 	// CSR bridge   0x60000000 (shadow @0xe0000000)
 	wire sys_rst = ~rst_vw;
 	wire sys_clk = clk50;
 
 	wire [31:0]	cpuibus_adr,
 			cpudbus_adr,
+			monitor_adr,
 			ebr_adr,
 			csrbrg_adr;
 	
@@ -22,6 +23,8 @@ module lm32_test_top (
 			cpuibus_dat_w,
 			cpudbus_dat_r,
 			cpudbus_dat_w,
+			monitor_dat_r,
+			monitor_dat_w,
 			csrbrg_dat_r,
 			csrbrg_dat_w,
 			ebr_dat_w,
@@ -35,6 +38,7 @@ module lm32_test_top (
 	wire [3:0]	cpuibus_sel;
 `endif
 	wire [3:0]	cpudbus_sel,
+			monitor_sel,
 			ebr_sel;
 
 `ifdef CFG_HW_DEBUG_ENABLED
@@ -42,20 +46,24 @@ module lm32_test_top (
 `endif
 	wire		csrbrg_we,
 			cpudbus_we,
+			monitor_we,
 			ebr_we;
 	
 	wire 		cpuibus_cyc,
 			cpudbus_cyc,
+			monitor_cyc,
 			csrbrg_cyc,
 			ebr_cyc;
 	
 	wire		cpuibus_stb,
 			cpudbus_stb,
+			monitor_stb,
 			csrbrg_stb,
 			ebr_stb;
 	
 	wire		cpuibus_ack,
 			cpudbus_ack,
+			monitor_ack,
 			csrbrg_ack,
 			ebr_ack;
 	
@@ -65,6 +73,7 @@ module lm32_test_top (
 
 	conbus5x6 #(
 		.s0_addr(3'b000),	// RAM
+		.s1_addr(3'b001),	// Debug
 		.s5_addr(2'b11)		// CSR
 	) wbswitch (
 		.sys_clk(sys_clk),
@@ -146,15 +155,15 @@ module lm32_test_top (
 		.s0_ack_i(ebr_ack),
 
 		// Slave 1
-		.s1_dat_i(),
-		.s1_dat_o(),
-		.s1_adr_o(),
+		.s1_dat_i(monitor_dat_r),
+		.s1_dat_o(monitor_dat_w),
+		.s1_adr_o(monitor_adr),
 		.s1_cti_o(),
-		.s1_sel_o(),
-		.s1_we_o(),
-		.s1_cyc_o(),
-		.s1_stb_o(),
-		.s1_ack_i(1'b0),
+		.s1_sel_o(monitor_sel),
+		.s1_we_o(monitor_we),
+		.s1_cyc_o(monitor_cyc),
+		.s1_stb_o(monitor_stb),
+		.s1_ack_i(monitor_ack),
 
 		// Slave 2
 		.s2_dat_i(),
@@ -226,7 +235,7 @@ module lm32_test_top (
 	wire [13:0]	csr_a;
 	wire		csr_we;
 	wire [31:0]	csr_dw;
-	wire [31:0]	csr_dr_gpio;
+	wire [31:0]	csr_dr_gpio, csr_dr_jtag_uart;
 
 	csrbrg csrbrg (
 		.sys_clk(sys_clk),
@@ -243,7 +252,7 @@ module lm32_test_top (
 		.csr_a(csr_a),
 		.csr_we(csr_we),
 		.csr_do(csr_dw),
-		.csr_di(csr_dr_gpio)
+		.csr_di(csr_dr_gpio | csr_dr_jtag_uart)
 	);
 
 
@@ -268,8 +277,34 @@ module lm32_test_top (
 	virtual_wire # (.PROBE_WIDTH(32), .WIDTH(0), .INSTANCE_ID("GPIO")) gpio_vw_blk (.probe(gpio_leds), .source());
 
 
+	//// JTAG - UART - Debug channel
+	jtag_uart #(
+		.csr_addr (4'h2)
+	) jtag_uart_blk (
+		.sys_clk (sys_clk),
+		.sys_rst (sys_rst),
+
+		.csr_a(csr_a),
+		.csr_we(csr_we),
+		.csr_di(csr_dw),
+		.csr_do(csr_dr_jtag_uart)
+	);
+	
+
 
 	//// CPU
+	reg ext_break = 0;
+	wire ext_break_vw;
+	virtual_wire # (.PROBE_WIDTH(0), .WIDTH(1), .INSTANCE_ID("EXTB")) ext_break_vw_blk (.probe(), .source(ext_break_vw));
+
+	reg old_ext_break = 0;
+
+	always @ (posedge sys_clk)
+	begin
+		old_ext_break <= ext_break_vw;
+		ext_break <= ext_break_vw & !old_ext_break;
+	end
+
 	lm32_top cpu(
 		.clk_i (sys_clk),
 		.rst_i (sys_rst),
@@ -315,6 +350,32 @@ module lm32_test_top (
 		.D_ERR_I(cpudbus_err),
 		.D_RTY_I(1'b0)
 	);
+
+
+	//// Monitor ROM / RAM
+	//// Allows debugging of the CPU. When ext_break is triggered, the CPU
+	//// jumps here.
+	wire debug_write_lock = 1'b1;
+`ifdef CFG_ROM_DEBUG_ENABLED
+	monitor (
+		.sys_clk(sys_clk),
+		.sys_rst(sys_rst),
+		.write_lock(debug_write_lock),
+
+		.wb_adr_i(monitor_adr),
+		.wb_dat_o(monitor_dat_r),
+		.wb_dat_i(monitor_dat_w),
+		.wb_sel_i(monitor_sel),
+		.wb_stb_i(monitor_stb),
+		.wb_cyc_i(monitor_cyc),
+		.wb_ack_o(monitor_ack),
+		.wb_we_i(monitor_we)
+	);
+`else
+	assign monitor_dat_r = 32'bx;
+	assign monitor_ack = 1'b0;
+`endif
+		
 	
 
 endmodule

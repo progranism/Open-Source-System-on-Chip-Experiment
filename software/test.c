@@ -9,3 +9,4 @@ void _start()
 		*gpio = *x;
 	}
 }
+

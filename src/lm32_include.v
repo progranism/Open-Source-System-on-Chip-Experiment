@@ -94,8 +94,8 @@
 `define CFG_ROM_DEBUG_ENABLED
 `define CFG_BREAKPOINTS 32'h4
 `define CFG_WATCHPOINTS 32'h4
-//`define CFG_EXTERNAL_BREAK_ENABLED
-`define CFG_GDBSTUB_ENABLED
+`define CFG_EXTERNAL_BREAK_ENABLED
+//`define CFG_GDBSTUB_ENABLED
 
 //
 // End of common configuration options
