@@ -48,7 +48,7 @@ wire ram_we = (wb_adr_i[12] == 1'b1) | ~write_lock;
 wire [10:0] adr;
 assign adr = wb_adr_i[12:2];
 `else
-wire ram_we = 0;// (wb_adr_i[10:9] == 2'b11) | ~write_lock;
+wire ram_we = (wb_adr_i[10:9] == 2'b11) | ~write_lock;
 wire [9:0] adr;
 assign adr = wb_adr_i[10:2];
 `endif

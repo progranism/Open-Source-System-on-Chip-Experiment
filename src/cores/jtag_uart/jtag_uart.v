@@ -1,31 +1,30 @@
 // Allows UART-like communication over JTAG on Altera devices
 //
 //
-// On the host side, here's how to send bytes:
-// Set UARX to 0
-// Loop until UARX reads as 0
-// Write desired byte to UARX, | (0x100)
-// Loop until UARX reads as not 0
 //
-// On the host side, to receive bytes:
-// Set UATX to 0
-// Loop until UATX is not 0
-// Received byte = UATX & 0xFF
-// Set UATX to not 0
+//
+// PROPOSED INTERFACE UPDATE:::
+//
+// HOST SIDE - Send Byte:
+// while (UARX != 0);	// Wait for buffer to clear
+// UARX = byte | 0x100;	// Send
+//
+// HOST SIDE - Receive Byte:
+// while (UATX == 0);	// Wait for data
+// byte = UATX & 0xFF;	// Read data
+// UATX = 0;	// Clear buffer
+//
+//
+// CPU SIDE - Send Byte:
+// while (UATX != 0);	// Wait for buffer to clear
+// UATX = byte | 0x100;
+//
+// CPU SIDE - Receive Byte:
+// while (UARX == 0);	// Wait for data
+// byte = UARX & 0xFF;	// Read data
+// UARX = 0;	// Clear buffer
 //
 // 
-// On our side, to receive a byte:
-// Loop until 0x0000 is 0
-// Set 0x0001 to 0
-// Loop until 0x0000 is not 0
-// Received byte is 0x0000 & 0xFF
-// Set 0x0001 to 1
-//
-// On our side, to send a byte:
-// Set 0x0002 to 0
-// Loop until 0x0003 is 0
-// Set 0x0002 to desired byte | 0x100
-// Loop until 0x0003 is not 0
 
 
 module jtag_uart #(
