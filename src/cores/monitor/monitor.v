@@ -32,6 +32,8 @@ module monitor(
 	input wb_we_i
 );
 
+`define CFG_GDBSTUB_ENABLED
+
 `ifdef CFG_GDBSTUB_ENABLED
 /* 8kb ram */
 reg [31:0] mem[0:2047];
