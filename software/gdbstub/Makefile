@@ -14,13 +14,13 @@ CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
 
 CFLAGS+=-Os
 
-all: gdbstub.elf gdbstub.bin gdbstub.rom
+all: gdbstub.elf gdbstub.bin gdbstub.mif
 
 %.bin: %.elf
 	$(OBJCOPY) $(SEGMENTS) -O binary $< $@
 
-%.rom: %.bin
-	../../tools/bin2hex $< $@ 2048
+%.mif: %.bin
+	../../tools/bin2mif $< $@ 2048
 
 gdbstub.elf: linker.ld $(OBJECTS)
 	$(LD) $(LDFLAGS) -T linker.ld -N -o $@ $(OBJECTS)
@@ -31,5 +31,5 @@ depend:
 	makedepend -Y -- $(CFLAGS) -- *.c
 
 clean:
-	rm -f *.o gdbstub.elf gdbstub.bin gdbstub.rom .*~ *~ Makefile.bak
+	rm -f *.o gdbstub.elf gdbstub.bin gdbstub.mif .*~ *~ Makefile.bak
 

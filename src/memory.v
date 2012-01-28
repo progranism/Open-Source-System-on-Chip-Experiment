@@ -1,6 +1,7 @@
 module memory # (
 	parameter ADDRESS_WIDTH = 1,
-	parameter DATA_WIDTH = 1
+	parameter DATA_WIDTH = 1,
+	parameter INIT_FILE = ""
        ) (
 	input clka,
 	input rsta,
@@ -59,7 +60,7 @@ module memory # (
 		altsyncram_component.width_a = DATA_WIDTH,
 		altsyncram_component.width_b = DATA_WIDTH,
 		altsyncram_component.width_byteena_a = 1,
-		altsyncram_component.init_file = "bios.fixed.hex";
+		altsyncram_component.init_file = INIT_FILE;
 
 endmodule
 

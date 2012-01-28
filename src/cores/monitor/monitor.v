@@ -2,6 +2,7 @@
  * Milkymist SoC
  * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
  * Copyright (C) 2010 Michael Walle
+ * Copyright (C) 2012 William Heatley
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,69 +17,54 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-module monitor(
+`include "src/lm32_include.v"
+
+module monitor (
 	input sys_clk,
 	input sys_rst,
 
 	input write_lock,
 
 	input [31:0] wb_adr_i,
-	output reg [31:0] wb_dat_o,
+	output [31:0] wb_dat_o,
 	input [31:0] wb_dat_i,
 	input [3:0] wb_sel_i,
 	input wb_stb_i,
 	input wb_cyc_i,
-	output reg wb_ack_o,
+	output wb_ack_o,
 	input wb_we_i
 );
 
-`define CFG_GDBSTUB_ENABLED
-
 `ifdef CFG_GDBSTUB_ENABLED
-/* 8kb ram */
-reg [31:0] mem[0:2047];
-initial $readmemh("gdbstub.rom", mem);
+	/* 8kb ram */
+	localparam ROM_FILE = "software/gdbstub/gdbstub.mif";
+	localparam ROM_SIZE = 2048 * 4;
 `else
-/* 2kb ram */
-reg [31:0] mem[0:511];
-initial $readmemh("monitor.rom", mem);
+	/* 2kb ram */
+	localparam ROM_FILE = "software/monitor/monitor.mif";
+	localparam ROM_SIZE = 512 * 4;
 `endif
 
-/* write protect */
-`ifdef CFG_GDBSTUB_ENABLED
-wire ram_we = (wb_adr_i[12] == 1'b1) | ~write_lock;
-wire [10:0] adr;
-assign adr = wb_adr_i[12:2];
-`else
-wire ram_we = (wb_adr_i[10:9] == 2'b11) | ~write_lock;
-wire [9:0] adr;
-assign adr = wb_adr_i[10:2];
-`endif
-
-always @(posedge sys_clk) begin
-	wb_dat_o <= mem[adr];
-	if(sys_rst)
-		wb_ack_o <= 1'b0;
-	else begin
-		wb_ack_o <= 1'b0;
-		
-		if(wb_stb_i & wb_cyc_i & ~wb_ack_o) begin
-			if(wb_we_i & ram_we) begin
-				if(wb_sel_i[0])
-					mem[adr][7:0] <= wb_dat_i[7:0];
-				if(wb_sel_i[1])
-					mem[adr][15:8] <= wb_dat_i[15:8];
-				if(wb_sel_i[2])
-					mem[adr][23:16] <= wb_dat_i[23:16];
-				if(wb_sel_i[3])
-					mem[adr][31:24] <= wb_dat_i[31:24];
-			end
-
-			wb_ack_o <= 1'b1;
-		end
-	
-	end
-end
+	wb_ebr_ctrl # (
+		.SIZE (ROM_SIZE),
+		.INIT_FILE (ROM_FILE)
+	) ram_blk (
+		.CLK_I (sys_clk),
+		.RST_I (sys_rst),
+		.EBR_ADR_I (wb_adr_i),
+		.EBR_DAT_I (wb_dat_i),
+		.EBR_WE_I (wb_we_i),
+		.EBR_CYC_I (wb_cyc_i),
+		.EBR_STB_I (wb_stb_i),
+		.EBR_SEL_I (wb_sel_i),
+		.EBR_CTI_I (),
+		.EBR_BTE (),
+		.EBR_LOCK_I (),
+		.EBR_DAT_O (wb_dat_o),
+		.EBR_ACK_O (wb_ack_o),
+		.EBR_ERR_O (),
+		.EBR_RTY_O ()
+	);
 
 endmodule
 

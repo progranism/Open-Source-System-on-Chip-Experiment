@@ -62,8 +62,7 @@
 module wb_ebr_ctrl 
   #(parameter SIZE             = 4096,
     parameter EBR_WB_DAT_WIDTH = 32,
-    parameter INIT_FILE_FORMAT = "hex",
-    parameter INIT_FILE_NAME   = "none"
+    parameter INIT_FILE   = "none"
     )
    (
     input CLK_I,
@@ -326,7 +325,8 @@ module wb_ebr_ctrl
 	 memory
 	 	# (
 			.ADDRESS_WIDTH (EBR_WB_ADR_WIDTH),
-			.DATA_WIDTH (32)
+			.DATA_WIDTH (32),
+			.INIT_FILE (INIT_FILE)
 		)
 		ram
 		(

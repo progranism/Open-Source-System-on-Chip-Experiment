@@ -10,11 +10,15 @@ module lm32_test_top (
 	// RAM		0x00000000 (shadow @0x80000000)
 	// Debug	0x10000000 (shadow @0xb0000000)
 	// CSR bridge   0x60000000 (shadow @0xe0000000)
-	wire sys_rst = ~rst_vw;
+	reg sys_rst = 1'b1;
 	wire sys_clk = clk50;
+
+	always @ (posedge sys_clk) sys_rst <= ~rst_vw;
+
 
 	wire [31:0]	cpuibus_adr,
 			cpudbus_adr,
+			jtag_adr,
 			monitor_adr,
 			ebr_adr,
 			csrbrg_adr;
@@ -23,6 +27,8 @@ module lm32_test_top (
 			cpuibus_dat_w,
 			cpudbus_dat_r,
 			cpudbus_dat_w,
+			jtag_dat_r,
+			jtag_dat_w,
 			monitor_dat_r,
 			monitor_dat_w,
 			csrbrg_dat_r,
@@ -38,6 +44,7 @@ module lm32_test_top (
 	wire [3:0]	cpuibus_sel;
 `endif
 	wire [3:0]	cpudbus_sel,
+			jtag_sel,
 			monitor_sel,
 			ebr_sel;
 
@@ -46,23 +53,27 @@ module lm32_test_top (
 `endif
 	wire		csrbrg_we,
 			cpudbus_we,
+			jtag_we,
 			monitor_we,
 			ebr_we;
 	
 	wire 		cpuibus_cyc,
 			cpudbus_cyc,
+			jtag_cyc,
 			monitor_cyc,
 			csrbrg_cyc,
 			ebr_cyc;
 	
 	wire		cpuibus_stb,
 			cpudbus_stb,
+			jtag_stb,
 			monitor_stb,
 			csrbrg_stb,
 			ebr_stb;
 	
 	wire		cpuibus_ack,
 			cpudbus_ack,
+			jtag_ack,
 			monitor_ack,
 			csrbrg_ack,
 			ebr_ack;
@@ -111,15 +122,15 @@ module lm32_test_top (
 		.m1_ack_o(cpudbus_ack),
 
 		// Master 2
-		.m2_dat_i(),
-		.m2_dat_o(),
-		.m2_adr_i(),
-		.m2_cti_i(),
-		.m2_we_i(1'b0),
-		.m2_sel_i(4'hf),
-		.m2_cyc_i(1'b0),
-		.m2_stb_i(1'b0),
-		.m2_ack_o(),
+		.m2_dat_i(jtag_dat_w),
+		.m2_dat_o(jtag_dat_r),
+		.m2_adr_i(jtag_adr),
+		.m2_cti_i(3'b111),
+		.m2_we_i(jtag_we),
+		.m2_sel_i(jtag_sel),
+		.m2_cyc_i(jtag_cyc),
+		.m2_stb_i(jtag_stb),
+		.m2_ack_o(jtag_ack),
 
 		// Master 3
 		.m3_dat_i(),
@@ -212,7 +223,10 @@ module lm32_test_top (
 
 
 	//// RAM
-	wb_ebr_ctrl # (.SIZE (4096)) ram_blk (
+	wb_ebr_ctrl # (
+		.SIZE (4096),
+		.INIT_FILE ("bios.fixed.hex")
+	) ram_blk (
 		.CLK_I (sys_clk),
 		.RST_I (sys_rst),
 		.EBR_ADR_I (ebr_adr),
@@ -277,10 +291,10 @@ module lm32_test_top (
 	virtual_wire # (.PROBE_WIDTH(32), .WIDTH(0), .INSTANCE_ID("GPIO")) gpio_vw_blk (.probe(gpio_leds), .source());
 
 
-	//// JTAG - UART - Debug channel
-	jtag_uart #(
+	//// UART - Debug channel
+	uart #(
 		.csr_addr (4'h2)
-	) jtag_uart_blk (
+	) uart_blk (
 		.sys_clk (sys_clk),
 		.sys_rst (sys_rst),
 
@@ -352,12 +366,29 @@ module lm32_test_top (
 	);
 
 
+	//// JTAG
+	//// Allows access to the data bus through JTAG.
+	jtag jtag_blk (
+		.sys_clk (sys_clk),
+		.sys_rst (sys_rst),
+
+		.wb_adr_o (jtag_adr),
+		.wb_dat_o (jtag_dat_w),
+		.wb_dat_i (jtag_dat_r),
+		.wb_ack_i (jtag_ack),
+		.wb_sel_o (jtag_sel),
+		.wb_stb_o (jtag_stb),
+		.wb_cyc_o (jtag_cyc),
+		.wb_we_o (jtag_we)
+	);
+
+
 	//// Monitor ROM / RAM
 	//// Allows debugging of the CPU. When ext_break is triggered, the CPU
 	//// jumps here.
 	wire debug_write_lock = 1'b1;
 `ifdef CFG_ROM_DEBUG_ENABLED
-	monitor (
+	monitor monitor_blk (
 		.sys_clk(sys_clk),
 		.sys_rst(sys_rst),
 		.write_lock(debug_write_lock),
