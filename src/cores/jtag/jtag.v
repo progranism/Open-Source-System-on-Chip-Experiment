@@ -42,7 +42,7 @@ module jtag (
 
 	virtual_wire # (
 		.WIDTH (66),
-		.PROBE_WIDTH (32),
+		.PROBE_WIDTH (33),
 		.INSTANCE_ID ("JBUS")
 	) vw_adr_blk (
 		.probe ({tx_ack, tx_data}),

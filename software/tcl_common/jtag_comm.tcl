@@ -63,7 +63,16 @@ proc write_instance {name value} {
 }
 
 proc write_instance_int {name value} {
-	write_instance $name [format %04X $value]
+	# Format can't handle integers greater than 32-bits, so we have to do it ourselves
+	set x [format %08X [expr {$value & 0xFFFFFFFF}]]
+	set value [expr {$value >> 32}]
+
+	while {$value > 0} {
+		set x [format "%08X%s" [expr {$value & 0xFFFFFFFF}] $x]
+		set value [expr {$value >> 32}]
+	}
+
+	write_instance $name $x
 }
 
 proc read_instance {name} {

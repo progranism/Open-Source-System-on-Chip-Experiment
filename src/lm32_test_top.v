@@ -249,7 +249,9 @@ module lm32_test_top (
 	wire [13:0]	csr_a;
 	wire		csr_we;
 	wire [31:0]	csr_dw;
-	wire [31:0]	csr_dr_gpio, csr_dr_jtag_uart;
+	wire [31:0]	csr_dr_gpio,
+			csr_dr_jtag_uart,
+			csr_dr_sysctl;
 
 	csrbrg csrbrg (
 		.sys_clk(sys_clk),
@@ -266,7 +268,11 @@ module lm32_test_top (
 		.csr_a(csr_a),
 		.csr_we(csr_we),
 		.csr_do(csr_dw),
-		.csr_di(csr_dr_gpio | csr_dr_jtag_uart)
+		.csr_di(
+			csr_dr_gpio
+			|csr_dr_jtag_uart
+			|csr_dr_sysctl
+		)
 	);
 
 
@@ -303,7 +309,20 @@ module lm32_test_top (
 		.csr_di(csr_dw),
 		.csr_do(csr_dr_jtag_uart)
 	);
-	
+
+
+	//// System Controller
+	sysctl #(
+		.csr_addr(4'h3)
+	) sysctl (
+		.sys_clk(sys_clk),
+		.sys_rst(sys_rst),
+
+		.csr_a(csr_a),
+		.csr_we(csr_we),
+		.csr_di(csr_dw),
+		.csr_do(csr_dr_sysctl)
+	);
 
 
 	//// CPU

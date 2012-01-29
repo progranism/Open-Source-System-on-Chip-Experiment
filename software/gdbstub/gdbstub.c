@@ -1,5 +1,6 @@
 /*
  * Milkymist SoC
+ * Copyright (C) 2012 William Heatley
  * Copyright (c) 2011 Michael Walle
  * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
  * Copyright (C) Linus Torvalds and Linux kernel developers
@@ -19,17 +20,15 @@
 #include <stdlib.h>
 
 #include <irq.h>
-//#include <hw/uart.h>
+#include <hw/uart.h>
 //#include <hw/interrupts.h>
 //#include <hw/gpio.h>
-//#include <hw/sysctl.h>
+#include <hw/sysctl.h>
 
 #define SUPPORT_P_CMD 1
 #define SUPPORT_X_CMD 1
 #define SUPPORT_Z_CMD 1
 #define SUPPORT_Q_CMD 1
-
-#define GDBSTUB_UART_SPEED 115200
 
 /* see crt0.S */
 extern void clear_bss(void);
@@ -111,27 +110,27 @@ static int memcmp(const void *cs, const void *ct, size_t count)
 
 static char get_debug_char(void)
 {
-	volatile unsigned int *jtag_uart = 0x60002000;
-	while (*(jtag_uart+0));
-	*(jtag_uart+1) = 0;
+	char c;
 
-	while (*(jtag_uart+0) == 0);
-
-	char r = *(jtag_uart+0);
-	*(jtag_uart+1) = *(jtag_uart+0);
+	// Wait buffer to fill
+	while (CSR_UART_RX == 0);
 	
-	return r;
+	// Read byte
+	c = CSR_UART_RX;
+
+	// Clear buffer
+	CSR_UART_RX = 0;
+	
+	return c;
 }
 
 static void put_debug_char(char c)
 {
-	volatile unsigned int *jtag_uart = 0x60002000;
+	// Wait for buffer to clear
+	while (CSR_UART_TX != 0);
 
-	*(jtag_uart+2) = 0;
-	while (*(jtag_uart+3));
-
-	*(jtag_uart+2) = c | 0x100;
-	while (*(jtag_uart+3) == 0);
+	// Write byte
+	CSR_UART_TX = c | 0x100;
 }
 
 /*
@@ -698,10 +697,10 @@ void handle_exception(unsigned int *registers)
     //CSR_UART_DEBUG = 0;
 
     /* clear BSS there was a board reset */
-    //if (!CSR_DBG_SCRATCHPAD) {
-    //    CSR_DBG_SCRATCHPAD = 1;
+    if (!CSR_DBG_SCRATCHPAD) {
+        CSR_DBG_SCRATCHPAD = 1;
         clear_bss();
-    //}
+    }
 
     /* disable bus errors */
     //dbg_ctrl = CSR_DBG_CTRL;
