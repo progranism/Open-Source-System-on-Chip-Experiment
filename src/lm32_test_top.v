@@ -224,8 +224,8 @@ module lm32_test_top (
 
 	//// RAM
 	wb_ebr_ctrl # (
-		.SIZE (4096),
-		.INIT_FILE ("bios.fixed.hex")
+		.SIZE (8192),
+		.INIT_FILE ("software/test/test.mif")
 	) ram_blk (
 		.CLK_I (sys_clk),
 		.RST_I (sys_rst),
