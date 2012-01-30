@@ -12,6 +12,8 @@ CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
 	 -msign-extend-enabled -fno-builtin -fsigned-char \
 	 -fsingle-precision-constant $(INCLUDES)
 
+CFLAGS+=-g
+
 all: test.elf test.bin test.mif
 
 %.bin: %.elf
