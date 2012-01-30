@@ -299,7 +299,8 @@ module lm32_test_top (
 
 	//// UART - Debug channel
 	uart #(
-		.csr_addr (4'h2)
+		.csr_addr (4'h2),
+		.JTAG_INSTANCE_ID (0)
 	) uart_blk (
 		.sys_clk (sys_clk),
 		.sys_rst (sys_rst),
@@ -328,7 +329,7 @@ module lm32_test_top (
 	//// CPU
 	reg ext_break = 0;
 	wire ext_break_vw;
-	virtual_wire # (.PROBE_WIDTH(0), .WIDTH(1), .INSTANCE_ID("EXTB")) ext_break_vw_blk (.probe(), .source(ext_break_vw));
+	safe_virtual_wire # (.PROBE_WIDTH(0), .SOURCE_WIDTH(1), .INSTANCE_ID("EXTB")) ext_break_vw_blk (.rx_clk (sys_clk), .rx_probe(), .tx_source(ext_break_vw));
 
 	reg old_ext_break = 0;
 
@@ -426,6 +427,66 @@ module lm32_test_top (
 	assign monitor_ack = 1'b0;
 `endif
 		
+	
+
+
+
+	//// Atlantic UART TEST
+	/*reg [7:0] uart_test_string [0:7];
+	initial
+	begin
+		uart_test_string[0] = "0";
+		uart_test_string[1] = "1";
+		uart_test_string[2] = "2";
+		uart_test_string[3] = "3";
+		uart_test_string[4] = "4";
+		uart_test_string[5] = "5";
+		uart_test_string[6] = "6";
+		uart_test_string[7] = "7";
+	end
+
+	reg [2:0] uart_test_idx = 3'd0;
+	wire [7:0] r_dat = uart_test_string [uart_test_idx];
+	wire [7:0] t_dat;
+	reg r_val = 1'b0;
+	wire r_ena, t_ena, t_pause, t_dav;
+
+	//assign r_val = r_ena;
+	assign t_dav = 1'b1;
+
+	always @ (posedge sys_clk)
+	begin
+		if (r_ena)
+		begin
+			r_val <= 1'b1;
+			uart_test_idx <= uart_test_idx + 3'd1;
+		end
+		else
+			r_val <= 1'b0;
+	end
+
+	alt_jtag_atlantic # (
+		.INSTANCE_ID (0),
+		.LOG2_RXFIFO_DEPTH (6),
+		.LOG2_TXFIFO_DEPTH (6)
+	) jtag_uart_blk (
+		.clk (sys_clk),
+		.r_dat (r_dat),
+		.r_ena (r_ena),
+		.r_val (r_val),
+		.rst_n (~sys_rst),
+		.t_dat (t_dat),
+		.t_dav (t_dav),
+		.t_ena (t_ena),
+		.t_pause (t_pause)
+	);
+
+
+	assign uart_force = t_dav ^ t_ena ^ t_pause ^ r_ena;
+
+	safe_virtual_wire # (.PROBE_WIDTH(4), .SOURCE_WIDTH(0), .INSTANCE_ID("UAR")) uart_force_blk (
+		.rx_clk (sys_clk), .rx_probe({t_dav, t_ena, t_pause, r_ena}), .tx_source()
+	);*/
 	
 
 endmodule

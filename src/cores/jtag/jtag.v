@@ -40,13 +40,14 @@ module jtag (
 	reg tx_ack = 1'b0;
 	reg [31:0] tx_data = 32'd0;
 
-	virtual_wire # (
-		.WIDTH (66),
+	safe_virtual_wire # (
+		.SOURCE_WIDTH (66),
 		.PROBE_WIDTH (33),
 		.INSTANCE_ID ("JBUS")
 	) vw_adr_blk (
-		.probe ({tx_ack, tx_data}),
-		.source (vw_rx_bus)
+		.rx_clk (sys_clk),
+		.rx_probe ({tx_ack, tx_data}),
+		.tx_source (vw_rx_bus)
 	);
 
 	always @ (posedge sys_clk) {rx_request, rx_we, rx_adr, rx_data} <= vw_rx_bus;
