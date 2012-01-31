@@ -1,6 +1,7 @@
 /*
  * lm32 JTAG monitor
  * 
+ * Copyright (C) 2012 by William Heatley
  * Copyright (C) 2009 by Michael Walle <michael@walle.cc>
  * Loosly based on Jon Beniston's LatticeMico32 JTAG monitor.
  *

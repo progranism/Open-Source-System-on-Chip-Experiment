@@ -1,3 +1,29 @@
+/*
+ * Copyright (C) 2012 William Heatley
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
+/*
+ * Attempts to control In-system Sources and Probes directly from C instead of
+ * through Altera's TCL interface.
+ *
+ * Link against the sld_hapi.dll library.
+ *
+ * NOT CURRENTLY FUNCTIONAL - EXPERIMENTAL
+ */
+
+
 int sld_node_lock (int a, int b);
 int sld_node_access_ir (int a, int b, int c, int d);
 int sld_node_access_dr (int a, int len, unsigned int *data_to_write, unsigned char *data_read, int e);
