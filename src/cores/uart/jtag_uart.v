@@ -63,7 +63,7 @@ module jtag_uart # (
 		.full (rfifo_full),
 		.q (tx_data),
 		.rdreq (rx_rd & ~tx_empty),
-		.usedw (rfifo_used),
+		.usedw (),
 		.wrreq (wr_rfifo)
 	);
 

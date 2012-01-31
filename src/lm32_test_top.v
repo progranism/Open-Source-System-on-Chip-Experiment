@@ -1,27 +1,66 @@
-module lm32_test_top (
-	input clk50,
+/*
+ * Based on Milkymist SoC
+ * Copyright (C) 2012 William Heatley
+ * Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-	output [7:0] led
+
+module lm32_test_top (
+	// Clocks
+	input		clk50,
+	input		clkin_125,
+
+	// Ethernet
+	input		enet_rx_clk,
+	output		enet_gtx_clk,
+	output		enet_mdc,
+	inout		enet_mdio,
+	output		enet_tx_en,
+	input	[3:0] 	enet_rxd,
+	output	[3:0] 	enet_txd,
+	input		enet_rx_dv,
+	output		enet_resetn,
+
+	// LEDs
+	output 	[7:0]	led
 );
 
-	wire rst_vw;
-	virtual_wire # (.PROBE_WIDTH(0), .WIDTH(1), .INSTANCE_ID("RSET")) rst_vw_blk (.probe(), .source(rst_vw));
-
-	// RAM		0x00000000 (shadow @0x80000000)
-	// Debug	0x10000000 (shadow @0xb0000000)
-	// CSR bridge   0x60000000 (shadow @0xe0000000)
-	reg sys_rst = 1'b1;
+	//// System Clock
 	wire sys_clk = clk50;
 
-	always @ (posedge sys_clk) sys_rst <= ~rst_vw;
+
+	//// System Reset
+	wire sys_rst;
+	safe_virtual_wire # (
+		.PROBE_WIDTH(0), .SOURCE_WIDTH(1), .INSTANCE_ID("EXTB")
+	) sys_rst_vw_blk (
+		.rx_clk (sys_clk), .rx_probe(), .tx_source(sys_rst)
+	);
 
 
+	// RAM		0x00000000 (shadow @0x80000000)
+	// Debug	0x10000000 (shadow @0x90000000)
+	// Ethernet     0x30000000 (shadow @0xb0000000)
+	// CSR bridge   0x60000000 (shadow @0xe0000000)
 	wire [31:0]	cpuibus_adr,
 			cpudbus_adr,
 			jtag_adr,
 			monitor_adr,
 			ebr_adr,
-			csrbrg_adr;
+			csrbrg_adr,
+			eth_adr;
 	
 	wire [31:0]	cpuibus_dat_r,
 			cpuibus_dat_w,
@@ -29,6 +68,8 @@ module lm32_test_top (
 			cpudbus_dat_w,
 			jtag_dat_r,
 			jtag_dat_w,
+			eth_dat_r,
+			eth_dat_w,
 			monitor_dat_r,
 			monitor_dat_w,
 			csrbrg_dat_r,
@@ -44,6 +85,7 @@ module lm32_test_top (
 	wire [3:0]	cpuibus_sel;
 `endif
 	wire [3:0]	cpudbus_sel,
+			eth_sel,
 			jtag_sel,
 			monitor_sel,
 			ebr_sel;
@@ -54,6 +96,7 @@ module lm32_test_top (
 	wire		csrbrg_we,
 			cpudbus_we,
 			jtag_we,
+			eth_we,
 			monitor_we,
 			ebr_we;
 	
@@ -62,6 +105,7 @@ module lm32_test_top (
 			jtag_cyc,
 			monitor_cyc,
 			csrbrg_cyc,
+			eth_cyc,
 			ebr_cyc;
 	
 	wire		cpuibus_stb,
@@ -69,6 +113,7 @@ module lm32_test_top (
 			jtag_stb,
 			monitor_stb,
 			csrbrg_stb,
+			eth_stb,
 			ebr_stb;
 	
 	wire		cpuibus_ack,
@@ -76,6 +121,7 @@ module lm32_test_top (
 			jtag_ack,
 			monitor_ack,
 			csrbrg_ack,
+			eth_ack,
 			ebr_ack;
 	
 	wire		cpuibus_err = 1'b0,
@@ -85,6 +131,9 @@ module lm32_test_top (
 	conbus5x6 #(
 		.s0_addr(3'b000),	// RAM
 		.s1_addr(3'b001),	// Debug
+		.s2_addr(3'b010),	// XXX
+		.s3_addr(3'b011),	// Ethernet
+		.s4_addr(2'b10), 	// XXX
 		.s5_addr(2'b11)		// CSR
 	) wbswitch (
 		.sys_clk(sys_clk),
@@ -188,15 +237,15 @@ module lm32_test_top (
 		.s2_ack_i(1'b0),
 
 		// Slave 3
-		.s3_dat_i(),
-		.s3_dat_o(),
-		.s3_adr_o(),
+		.s3_dat_i(eth_dat_r),
+		.s3_dat_o(eth_dat_w),
+		.s3_adr_o(eth_adr),
 		.s3_cti_o(),
-		.s3_sel_o(),
-		.s3_we_o(),
-		.s3_cyc_o(),
-		.s3_stb_o(),
-		.s3_ack_i(1'b0),
+		.s3_sel_o(eth_sel),
+		.s3_we_o(eth_we),
+		.s3_cyc_o(eth_cyc),
+		.s3_stb_o(eth_stb),
+		.s3_ack_i(eth_ack),		
 
 		// Slave 4
 		.s4_dat_i(),
@@ -251,7 +300,8 @@ module lm32_test_top (
 	wire [31:0]	csr_dw;
 	wire [31:0]	csr_dr_gpio,
 			csr_dr_jtag_uart,
-			csr_dr_sysctl;
+			csr_dr_sysctl,
+			csr_dr_ethernet;
 
 	csrbrg csrbrg (
 		.sys_clk(sys_clk),
@@ -272,6 +322,7 @@ module lm32_test_top (
 			csr_dr_gpio
 			|csr_dr_jtag_uart
 			|csr_dr_sysctl
+			|csr_dr_ethernet
 		)
 	);
 
@@ -428,66 +479,49 @@ module lm32_test_top (
 `endif
 		
 	
-
-
-
-	//// Atlantic UART TEST
-	/*reg [7:0] uart_test_string [0:7];
-	initial
-	begin
-		uart_test_string[0] = "0";
-		uart_test_string[1] = "1";
-		uart_test_string[2] = "2";
-		uart_test_string[3] = "3";
-		uart_test_string[4] = "4";
-		uart_test_string[5] = "5";
-		uart_test_string[6] = "6";
-		uart_test_string[7] = "7";
-	end
-
-	reg [2:0] uart_test_idx = 3'd0;
-	wire [7:0] r_dat = uart_test_string [uart_test_idx];
-	wire [7:0] t_dat;
-	reg r_val = 1'b0;
-	wire r_ena, t_ena, t_pause, t_dav;
-
-	//assign r_val = r_ena;
-	assign t_dav = 1'b1;
-
-	always @ (posedge sys_clk)
-	begin
-		if (r_ena)
-		begin
-			r_val <= 1'b1;
-			uart_test_idx <= uart_test_idx + 3'd1;
-		end
-		else
-			r_val <= 1'b0;
-	end
-
-	alt_jtag_atlantic # (
-		.INSTANCE_ID (0),
-		.LOG2_RXFIFO_DEPTH (6),
-		.LOG2_TXFIFO_DEPTH (6)
-	) jtag_uart_blk (
-		.clk (sys_clk),
-		.r_dat (r_dat),
-		.r_ena (r_ena),
-		.r_val (r_val),
-		.rst_n (~sys_rst),
-		.t_dat (t_dat),
-		.t_dav (t_dav),
-		.t_ena (t_ena),
-		.t_pause (t_pause)
+	//// Ethernet
+	wire eth_tx_clk;
+	eth_clk_div eth_clk_div_blk (
+		.rx_clk125 (clkin_125),
+		.tx_clk (eth_tx_clk)
 	);
 
+	minimac2 # (
+		.csr_addr (4'h8)
+	) ethernet (
+		.sys_clk(sys_clk),
+		.sys_rst(sys_rst),
 
-	assign uart_force = t_dav ^ t_ena ^ t_pause ^ r_ena;
+		.csr_a(csr_a),
+		.csr_we(csr_we),
+		.csr_di(csr_dw),
+		.csr_do(csr_dr_ethernet),
 
-	safe_virtual_wire # (.PROBE_WIDTH(4), .SOURCE_WIDTH(0), .INSTANCE_ID("UAR")) uart_force_blk (
-		.rx_clk (sys_clk), .rx_probe({t_dav, t_ena, t_pause, r_ena}), .tx_source()
-	);*/
-	
+		.irq_rx(),
+		.irq_tx(),
+
+		.wb_adr_i(eth_adr),
+		.wb_dat_o(eth_dat_r),
+		.wb_dat_i(eth_dat_w),
+		.wb_sel_i(eth_sel),
+		.wb_stb_i(eth_stb),
+		.wb_cyc_i(eth_cyc),
+		.wb_ack_o(eth_ack),
+		.wb_we_i(eth_we),
+
+		.phy_tx_clk(eth_tx_clk),
+		.phy_tx_data(enet_txd),
+		.phy_tx_en(enet_tx_en),
+		.phy_rx_clk(enet_rx_clk),
+		.phy_rx_data(enet_rxd),
+		.phy_dv(enet_rx_dv),
+		.phy_mii_clk(enet_mdc),
+		.phy_mii_data(enet_mdio),
+		.phy_rst_n(enet_resetn)		
+	);
+
+	assign enet_gtx_clk = eth_tx_clk;
+
 
 endmodule
 

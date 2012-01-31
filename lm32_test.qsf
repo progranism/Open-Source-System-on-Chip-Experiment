@@ -56,16 +56,45 @@ set_global_assignment -name LL_ROOT_REGION ON -section_id "Root Region"
 set_global_assignment -name LL_MEMBER_STATE LOCKED -section_id "Root Region"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY quartus_output
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
+
+#### Clocks ####
 set_location_assignment PIN_AH15 -to clk50
-set_global_assignment -name MISC_FILE "D:/My Downloads/Trash/altera_lm32_test/lm32_test.dpf"
-set_location_assignment PIN_AE20 -to led[1]
+set_location_assignment PIN_A14 -to clkin_125
+################
+
+#### LEDs ####
 set_location_assignment PIN_AD15 -to led[0]
+set_location_assignment PIN_AE20 -to led[1]
 set_location_assignment PIN_AF18 -to led[2]
 set_location_assignment PIN_AD19 -to led[3]
 set_location_assignment PIN_AE15 -to led[4]
 set_location_assignment PIN_AC17 -to led[5]
 set_location_assignment PIN_AG19 -to led[6]
 set_location_assignment PIN_AF19 -to led[7]
+##############
+
+#### Ethernet ####
+set_location_assignment PIN_B14 -to enet_rx_clk
+set_location_assignment PIN_T8 -to enet_gtx_clk
+
+set_location_assignment PIN_N8 -to enet_mdc
+set_location_assignment PIN_L5 -to enet_mdio
+
+set_location_assignment PIN_AA7 -to enet_tx_en
+set_location_assignment PIN_AD2 -to enet_resetn
+set_location_assignment PIN_AB4 -to enet_rx_dv
+
+set_location_assignment PIN_W8 -to enet_rxd[0]
+set_location_assignment PIN_AA6 -to enet_rxd[1]
+set_location_assignment PIN_W7 -to enet_rxd[2]
+set_location_assignment PIN_Y6 -to enet_rxd[3]
+set_location_assignment PIN_W4 -to enet_txd[0]
+set_location_assignment PIN_AA5 -to enet_txd[1]
+set_location_assignment PIN_Y5 -to enet_txd[2]
+set_location_assignment PIN_W3 -to enet_txd[3]
+##################
+
+
 set_global_assignment -name ENABLE_SIGNALTAP ON
 set_global_assignment -name USE_SIGNALTAP_FILE stp1.stp
 set_global_assignment -name SLD_NODE_CREATOR_ID 110 -section_id auto_signaltap_0
@@ -90,35 +119,6 @@ set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_INVERSION_MASK_LE
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_TRIGGER_BITS=1" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_SEGMENT_SIZE=2048" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_SAMPLE_DEPTH=2048" -section_id auto_signaltap_0
-set_global_assignment -name VERILOG_FILE src/cores/uart/jtag_uart.v
-set_global_assignment -name VERILOG_FILE src/safe_virtual_wire.v
-set_global_assignment -name VERILOG_FILE src/cores/sysctl/sysctl.v
-set_global_assignment -name VERILOG_FILE src/cores/uart/uart.v
-set_global_assignment -name VERILOG_FILE src/cores/jtag/jtag.v
-set_global_assignment -name VERILOG_FILE src/cores/monitor/monitor.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_addsub.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_shifter.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_dp_ram.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_debug.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_interrupt.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_multiplier.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_logic_op.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_adder.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_load_store_unit.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_mc_arithmetic.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_decoder.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_instruction_unit.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_cpu.v
-set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_top.v
-set_global_assignment -name VERILOG_FILE src/memory.v
-set_global_assignment -name VERILOG_FILE src/wb_ebr_ctrl2.v
-set_global_assignment -name VERILOG_FILE src/gpio.v
-set_global_assignment -name VERILOG_FILE src/csrbrg.v
-set_global_assignment -name VERILOG_FILE src/virtual_wire.v
-set_global_assignment -name VERILOG_FILE src/conbus_arb5.v
-set_global_assignment -name VERILOG_FILE src/conbus5x6.v
-set_global_assignment -name VERILOG_FILE src/lm32_test_top.v
-set_global_assignment -name SIGNALTAP_FILE stp1.stp
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_trigger_in[0] -to "uart:uart_blk|jtag_uart:jtag_uart_blk|alt_jtag_atlantic:jtag_uart_blk|t_ena" -section_id auto_signaltap_0
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_data_in[0] -to "uart:uart_blk|jtag_rd" -section_id auto_signaltap_0
 set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_data_in[1] -to "uart:uart_blk|jtag_uart:jtag_uart_blk|alt_jtag_atlantic:jtag_uart_blk|r_dat[0]" -section_id auto_signaltap_0
@@ -230,4 +230,43 @@ set_instance_assignment -name CONNECT_TO_SLD_NODE_ENTITY_PORT acq_data_in[106] -
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_DATA_BITS=107" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_NODE_CRC_LOWORD=47446" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_NODE_CRC_HIWORD=55897" -section_id auto_signaltap_0
+
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2_tx.v
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2_sync.v
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2_rx.v
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2_psync.v
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2_memory.v
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2_ctlif.v
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2_altera_memory.v
+set_global_assignment -name VERILOG_FILE src/cores/minimac2/minimac2.v
+set_global_assignment -name VERILOG_FILE src/cores/eth_clk_div/eth_clk_div.v
+set_global_assignment -name VERILOG_FILE src/cores/uart/jtag_uart.v
+set_global_assignment -name VERILOG_FILE src/safe_virtual_wire.v
+set_global_assignment -name VERILOG_FILE src/cores/sysctl/sysctl.v
+set_global_assignment -name VERILOG_FILE src/cores/uart/uart.v
+set_global_assignment -name VERILOG_FILE src/cores/jtag/jtag.v
+set_global_assignment -name VERILOG_FILE src/cores/monitor/monitor.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_addsub.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_shifter.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_dp_ram.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_debug.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_interrupt.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_multiplier.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_logic_op.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_adder.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_load_store_unit.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_mc_arithmetic.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_decoder.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_instruction_unit.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_cpu.v
+set_global_assignment -name VERILOG_FILE src/cores/lm32/lm32_top.v
+set_global_assignment -name VERILOG_FILE src/memory.v
+set_global_assignment -name VERILOG_FILE src/wb_ebr_ctrl2.v
+set_global_assignment -name VERILOG_FILE src/gpio.v
+set_global_assignment -name VERILOG_FILE src/csrbrg.v
+set_global_assignment -name VERILOG_FILE src/virtual_wire.v
+set_global_assignment -name VERILOG_FILE src/conbus_arb5.v
+set_global_assignment -name VERILOG_FILE src/conbus5x6.v
+set_global_assignment -name VERILOG_FILE src/lm32_test_top.v
+set_global_assignment -name SIGNALTAP_FILE stp1.stp
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
