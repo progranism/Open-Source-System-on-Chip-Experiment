@@ -1,4 +1,4 @@
-OBJECTS=crt0.o main.o
+OBJECTS=crt0.o main.o console.o libc.o vsnprintf-nofloat.o divsi3.o
 SEGMENTS=-j .text -j .data -j .rodata
 CC=lm32-elf-gcc
 LD=lm32-elf-ld
@@ -6,9 +6,9 @@ OBJCOPY=lm32-elf-objcopy
 
 LDFLAGS = -nostdlib -nodefaultlibs
 INCLUDES_NOLIBC ?= -nostdinc
-INCLUDES = $(INCLUDES_NOLIBC) -I../include
+INCLUDES = $(INCLUDES_NOLIBC) -I../include -I../include/base
 CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
-	 -mbarrel-shift-enabled -mmultiply-enabled \
+	 -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled \
 	 -msign-extend-enabled -fno-builtin -fsigned-char \
 	 -fsingle-precision-constant $(INCLUDES)
 
