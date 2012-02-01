@@ -42,7 +42,8 @@ module minimac2_memory(
 
 );
 
-wire wb_en = wb_cyc_i & wb_stb_i;
+reg wb_old_cyc = 1'b0;
+wire wb_en = wb_cyc_i & wb_stb_i;// & ~wb_old_cyc;
 wire [1:0] wb_buf = wb_adr_i[12:11];
 wire [31:0] wb_dat_i_le = {wb_dat_i[7:0], wb_dat_i[15:8], wb_dat_i[23:16], wb_dat_i[31:24]};
 wire [3:0] wb_sel_i_le = {wb_sel_i[0], wb_sel_i[1], wb_sel_i[2], wb_sel_i[3]};
@@ -98,6 +99,8 @@ minimac2_altera_memory txb (
 );
 
 always @(posedge sys_clk) begin
+	wb_old_cyc <= wb_cyc_i;
+
 	if(sys_rst)
 		wb_ack_o <= 1'b0;
 	else begin

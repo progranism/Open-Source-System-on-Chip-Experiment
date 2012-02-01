@@ -22,14 +22,17 @@
 #include <hw/uart.h>
 #include <hw/minimac.h>
 #include <net/mdio.h>
+#include <net/microudp.h>
+#include <stdio.h>
 
 #define ETH_PHY_ADR 18
 
 
+const unsigned char macadr[] = {0xF6, 0x13, 0x06, 0xE8, 0x53, 0xDF};
+
+
 static void print_mac(void)
 {
-	const unsigned char macadr[] = {0xF6, 0x13, 0x06, 0xE8, 0x53, 0xDF};
-
 	printf("I: MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
 }
 
@@ -107,24 +110,28 @@ int main(int i, char **c)
 	printf ("I: PHY ID0: %04X\n", mdio_read (ETH_PHY_ADR, 2));
 	printf ("I: PHY ID1: %04X\n", mdio_read (ETH_PHY_ADR, 3));
 
-	printf ("Waiting for ethernet link to come up...\n");
-	while (1) {
-		if (mdio_read (ETH_PHY_ADR, 17) & (1 << 10))
-			break;
-	}
-
-	eth_print_status ();
-
-	printf ("Disabling 1000MB...\n");
+	// Disable 1000MB
 	int x = mdio_read (ETH_PHY_ADR, 9);
 	x &= ~((1 << 9) | (1 << 8));
 	mdio_write (ETH_PHY_ADR, 9, x);
 
-	// Restart auto negotiation
+	// Enable timing adjustments on the PHY
+	x = mdio_read (ETH_PHY_ADR, 20);
+	//x |= (1 << 7);	// RX adjustments (->FPGA)
+	mdio_write (ETH_PHY_ADR, 20, x);
+
+	// Software reset
 	x = mdio_read (ETH_PHY_ADR, 0);
-	x |= (1 << 9);
+	x |= (1 << 15);
 	mdio_write (ETH_PHY_ADR, 0, x);
-   
+
+	while (mdio_read (ETH_PHY_ADR, 0) & (1 << 15));
+
+	// Restart auto negotiation
+	//x = mdio_read (ETH_PHY_ADR, 0);
+	//x |= (1 << 9);
+	//mdio_write (ETH_PHY_ADR, 0, x);
+
 	printf ("Waiting for ethernet link to come up...\n");
 	while (1) {
 		if (mdio_read (ETH_PHY_ADR, 17) & (1 << 10))
@@ -132,6 +139,12 @@ int main(int i, char **c)
 	}
 
 	eth_print_status ();
+
+
+	microudp_start (macadr, IPTOINT(192, 168, 10, 177));
+	//CSR_MINIMAC_STATE0 = MINIMAC_STATE_LOADED;
+	//CSR_MINIMAC_STATE1 = MINIMAC_STATE_LOADED;
+	//CSR_MINIMAC_SETUP = 0;
 
 
    	// Some silly test loop
@@ -148,6 +161,8 @@ int main(int i, char **c)
 			CSR_UART_TX = CSR_UART_RX & 0xFF;
 			CSR_UART_RX = 0;
 		}
+
+		microudp_service ();
 	}
 
 	return 0;

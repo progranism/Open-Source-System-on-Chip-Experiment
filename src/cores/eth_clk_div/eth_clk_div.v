@@ -12,12 +12,12 @@ module eth_clk_div (
 	// clock:	1 1 0 0 0
 	always @ (posedge rx_clk125)
 	begin
-		if (counter >= 13'd4900)
+		if (counter >= 13'd4)
 			counter <= 13'd0;
 		else
 			counter <= counter + 13'd1;
 
-		gen_clk <= counter < 13'd190;
+		gen_clk <= counter < 13'd2;
 	end
 
 	always @ (gen_clk or rx_clk125)

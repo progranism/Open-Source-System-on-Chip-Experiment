@@ -273,7 +273,7 @@ module lm32_test_top (
 
 	//// RAM
 	wb_ebr_ctrl # (
-		.SIZE (16384),
+		.SIZE (32768),
 		.INIT_FILE ("software/ethernet_test/ethernet_test.mif")
 	) ram_blk (
 		.CLK_I (sys_clk),
@@ -486,6 +486,20 @@ module lm32_test_top (
 		.tx_clk (eth_tx_clk)
 	);
 
+	// Delay the data by one 125MHz cycle to help the skew
+	// A poor man's timing constraint until I get the real timing
+	// constraints nailed down.
+	reg [7:0] delay_enet_rxd = 8'd0;
+	reg [2:0] delay_enet_rx_clk = 3'b00;
+	reg [1:0] delay_enet_dv = 3'b00;
+	always @ (posedge clkin_125)
+	begin
+		delay_enet_rxd <= {delay_enet_rxd[3:0], enet_rxd};
+		delay_enet_rx_clk <= {delay_enet_rx_clk[1:0], enet_rx_clk};
+		delay_enet_dv <= {delay_enet_dv[0], enet_rx_dv};
+	end
+
+
 	minimac2 # (
 		.csr_addr (4'h8)
 	) ethernet (
@@ -512,9 +526,9 @@ module lm32_test_top (
 		.phy_tx_clk(eth_tx_clk),
 		.phy_tx_data(enet_txd),
 		.phy_tx_en(enet_tx_en),
-		.phy_rx_clk(enet_rx_clk),
-		.phy_rx_data(enet_rxd),
-		.phy_dv(enet_rx_dv),
+		.phy_rx_clk(delay_enet_rx_clk[2]),
+		.phy_rx_data(delay_enet_rxd[7:4]),
+		.phy_dv(delay_enet_dv[1]),
 		.phy_mii_clk(enet_mdc),
 		.phy_mii_data(enet_mdio),
 		.phy_rst_n(enet_resetn)		
