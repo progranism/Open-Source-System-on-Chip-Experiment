@@ -5,19 +5,19 @@ module eth_clk_div (
 	output reg tx_clk /* synthesis ALTERA_ATTRIBUTE="PRESERVE_REGISTER=ON" */
 );
 
-	reg [5:0] counter = 6'd0;
+	reg [12:0] counter = 13'd0;
 	reg gen_clk = 1'b0;
 
 	// counter:	0 1 2 3 4
 	// clock:	1 1 0 0 0
 	always @ (posedge rx_clk125)
 	begin
-		if (counter >= 6'd4)
-			counter <= 6'd0;
+		if (counter >= 13'd4900)
+			counter <= 13'd0;
 		else
-			counter <= counter + 6'd1;
+			counter <= counter + 13'd1;
 
-		gen_clk <= counter < 6'd2;
+		gen_clk <= counter < 13'd190;
 	end
 
 	always @ (gen_clk or rx_clk125)

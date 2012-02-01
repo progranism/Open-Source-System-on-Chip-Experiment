@@ -57,13 +57,16 @@ int main (int argc, char *argv[])
 
 	printf ("Data written.\n\n");
 
-	char buf[128];
+	char buf[512];
 
-	buf[128] = 0;
+	buf[511] = 0;
 
 	printf ("Reading data...\n");
 
-	int result = jtagatlantic_read (link, buf, 127);
+	int result = jtagatlantic_read (link, buf, 511);
+
+	if (result >= 0)
+	buf[result] = 0;
 
 	printf ("Readback: %d\n%s\n--\n", result, buf);
 

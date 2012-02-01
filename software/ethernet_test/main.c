@@ -21,6 +21,8 @@
 #include <hw/gpio.h>
 #include <hw/uart.h>
 #include <hw/minimac.h>
+#include <net/mdio.h>
+
 
 static void print_mac(void)
 {
@@ -49,8 +51,19 @@ int main(int i, char **c)
 {
 	int count = 0;
 
+	ethreset_delay();
 	ethreset();
 	print_mac();
+	ethreset();
+	ethreset_delay();
+
+	// Test MDIO
+	count = 18;
+	int x = mdio_read (count, 2);
+	printf ("I: PHY %d ID0: %04X\n", count, x);
+	count = 18;
+	x = mdio_read (count, 3);
+	printf ("I: PHY %d ID1: %04X\n", count, x);
 
 	while (1)
 	{

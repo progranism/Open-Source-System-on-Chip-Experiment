@@ -44,7 +44,7 @@ module lm32_test_top (
 	//// System Reset
 	wire sys_rst;
 	safe_virtual_wire # (
-		.PROBE_WIDTH(0), .SOURCE_WIDTH(1), .INSTANCE_ID("EXTB")
+		.PROBE_WIDTH(0), .SOURCE_WIDTH(1), .INSTANCE_ID("SRST")
 	) sys_rst_vw_blk (
 		.rx_clk (sys_clk), .rx_probe(), .tx_source(sys_rst)
 	);
