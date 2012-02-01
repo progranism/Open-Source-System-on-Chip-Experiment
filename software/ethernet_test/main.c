@@ -23,6 +23,8 @@
 #include <hw/minimac.h>
 #include <net/mdio.h>
 
+#define ETH_PHY_ADR 18
+
 
 static void print_mac(void)
 {
@@ -58,12 +60,8 @@ int main(int i, char **c)
 	ethreset_delay();
 
 	// Test MDIO
-	count = 18;
-	int x = mdio_read (count, 2);
-	printf ("I: PHY %d ID0: %04X\n", count, x);
-	count = 18;
-	x = mdio_read (count, 3);
-	printf ("I: PHY %d ID1: %04X\n", count, x);
+	printf ("I: PHY ID0: %04X\n", mdio_read (ETH_PHY_ADR, 2));
+	printf ("I: PHY ID1: %04X\n", mdio_read (ETH_PHY_ADR, 3));
 
 	while (1)
 	{

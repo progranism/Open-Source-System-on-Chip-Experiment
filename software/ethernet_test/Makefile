@@ -7,7 +7,7 @@ OBJCOPY=lm32-elf-objcopy
 LDFLAGS = -nostdlib -nodefaultlibs
 INCLUDES_NOLIBC ?= -nostdinc
 INCLUDES = $(INCLUDES_NOLIBC) -I../include -I../include/base
-CFLAGS = -O1 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
+CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
 	 -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled \
 	 -msign-extend-enabled -fno-builtin -fsigned-char \
 	 -fsingle-precision-constant $(INCLUDES)

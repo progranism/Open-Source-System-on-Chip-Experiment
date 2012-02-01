@@ -1,5 +1,6 @@
 /*
- * Milkymist SoC (Software)
+ * Derived from Milkymist SoC (Software)
+ * Copyright (C) 2012 William Heatley
  * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
@@ -29,20 +30,12 @@ static void raw_write(unsigned int word, int bitcount)
 	word <<= 32 - bitcount;
 	while(bitcount > 0) {
 		if(word & 0x80000000) {
-			/*CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK|MINIMAC_MDIO_DO|MINIMAC_MDIO_OE;
-			delay();
-			CSR_MINIMAC_MDIO = MINIMAC_MDIO_DO|MINIMAC_MDIO_OE;
-			delay();*/
 			CSR_MINIMAC_MDIO = MINIMAC_MDIO_DO|MINIMAC_MDIO_OE;
 			delay();
 			CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK|MINIMAC_MDIO_DO|MINIMAC_MDIO_OE;
 			delay();
 			CSR_MINIMAC_MDIO = MINIMAC_MDIO_DO|MINIMAC_MDIO_OE;
 		} else {
-			/*CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK|MINIMAC_MDIO_OE;
-			delay();
-			CSR_MINIMAC_MDIO = MINIMAC_MDIO_OE;
-			delay();*/
 			CSR_MINIMAC_MDIO = MINIMAC_MDIO_OE;
 			delay();
 			CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK|MINIMAC_MDIO_OE;
@@ -69,21 +62,8 @@ static unsigned int raw_read(void)
 		word <<= 1;
 		if(CSR_MINIMAC_MDIO & MINIMAC_MDIO_DI)
 			word |= 1;
-
-		/*word <<= 1;
-		CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK;
-		delay();
-		CSR_MINIMAC_MDIO = 0;
-		delay();
-		if(CSR_MINIMAC_MDIO & MINIMAC_MDIO_DI)
-			word |= 1;*/
 	}
 
-	/*delay();
-	CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK;
-	delay();
-	CSR_MINIMAC_MDIO = 0;*/
-	
 	return word;
 }
 
@@ -93,15 +73,6 @@ static void raw_turnaround(void)
 	CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK;
 	delay();
 	CSR_MINIMAC_MDIO = 0;
-
-	/*CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK;
-	delay();
-	CSR_MINIMAC_MDIO = 0;
-	delay();
-	CSR_MINIMAC_MDIO = MINIMAC_MDIO_CLK;
-	delay();
-	CSR_MINIMAC_MDIO = 0;
-	delay();*/
 }
 
 void mdio_write(int phyadr, int reg, int val)
@@ -125,13 +96,10 @@ int mdio_read(int phyadr, int reg)
 	raw_write(0x06, 4); /* < start + read */
 	raw_write(phyadr, 5);
 	raw_write(reg, 5);
-	delay();
 
 	CSR_MINIMAC_MDIO = 0;
 	raw_turnaround();
-	delay();
 	r = raw_read();
-	delay();
 	raw_turnaround();
 	
 	return r;
