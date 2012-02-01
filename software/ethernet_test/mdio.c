@@ -82,8 +82,11 @@ void mdio_write(int phyadr, int reg, int val)
 	raw_write(0x05, 4); /* < start + write */
 	raw_write(phyadr, 5);
 	raw_write(reg, 5);
+
 	raw_write(0x02, 2); /* < turnaround */
 	raw_write(val, 16);
+
+	CSR_MINIMAC_MDIO = 0;
 	raw_turnaround();
 }
 

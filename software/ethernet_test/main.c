@@ -49,6 +49,50 @@ static void ethreset(void)
 	ethreset_delay();
 }
 
+static void eth_print_status(void)
+{
+	int status = mdio_read (ETH_PHY_ADR, 17);
+	if (status & (1 << 10))
+		printf ("ETH PHY Status: LINK_UP ");
+	else {
+		printf ("ETH PHY Status: LINK_DOWN :(\n");
+		return;
+	}
+
+	switch (status >> 14)
+	{
+	case 3:
+		printf ("SPEED-RESERVED ");
+		break;
+	case 2:
+		printf ("SPEED-1000MB ");
+		break;
+	case 1:
+		printf ("SPEED-100MB ");
+		break;
+	case 0:
+		printf ("SPEED-10MB ");
+		break;
+	}
+
+	if (status & (1 << 13))
+		printf ("FULL-DUPLEX ");
+	else
+		printf ("HALF-DUPLEX ");
+
+	if (status & (1 << 11))
+		printf("SPD_DPLX_RSLVD ");
+	else
+		printf("SPD_DPLX_NOT_RSLVD ");
+
+	if (status & (1 << 6))
+		printf("MDIX ");
+	else
+		printf("MDI ");
+
+	printf ("\n");
+}
+
 int main(int i, char **c)
 {
 	int count = 0;
@@ -63,6 +107,34 @@ int main(int i, char **c)
 	printf ("I: PHY ID0: %04X\n", mdio_read (ETH_PHY_ADR, 2));
 	printf ("I: PHY ID1: %04X\n", mdio_read (ETH_PHY_ADR, 3));
 
+	printf ("Waiting for ethernet link to come up...\n");
+	while (1) {
+		if (mdio_read (ETH_PHY_ADR, 17) & (1 << 10))
+			break;
+	}
+
+	eth_print_status ();
+
+	printf ("Disabling 1000MB...\n");
+	int x = mdio_read (ETH_PHY_ADR, 9);
+	x &= ~((1 << 9) | (1 << 8));
+	mdio_write (ETH_PHY_ADR, 9, x);
+
+	// Restart auto negotiation
+	x = mdio_read (ETH_PHY_ADR, 0);
+	x |= (1 << 9);
+	mdio_write (ETH_PHY_ADR, 0, x);
+   
+	printf ("Waiting for ethernet link to come up...\n");
+	while (1) {
+		if (mdio_read (ETH_PHY_ADR, 17) & (1 << 10))
+			break;
+	}
+
+	eth_print_status ();
+
+
+   	// Some silly test loop
 	while (1)
 	{
 		if (count == 1000000) {
