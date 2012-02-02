@@ -99,6 +99,7 @@ static void eth_print_status(void)
 int main(int i, char **c)
 {
 	int count = 0;
+	int x;
 
 	ethreset_delay();
 	ethreset();
@@ -111,11 +112,12 @@ int main(int i, char **c)
 	printf ("I: PHY ID1: %04X\n", mdio_read (ETH_PHY_ADR, 3));
 
 	// Disable 1000MB
-	int x = mdio_read (ETH_PHY_ADR, 9);
+	x = mdio_read (ETH_PHY_ADR, 9);
 	x &= ~((1 << 9) | (1 << 8));
 	mdio_write (ETH_PHY_ADR, 9, x);
 
 	// Enable timing adjustments on the PHY
+	// TODO: Doesn't seem to do anything?
 	x = mdio_read (ETH_PHY_ADR, 20);
 	//x |= (1 << 7);	// RX adjustments (->FPGA)
 	mdio_write (ETH_PHY_ADR, 20, x);

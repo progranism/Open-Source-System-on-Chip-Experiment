@@ -458,27 +458,17 @@ module lm32_test_top (
 	wire eth_tx_clk;
 	eth_clk_div eth_clk_div_blk (
 		.rx_clk125 (clkin_125),
-		.tx_clk (eth_tx_clk)
+		.tx_clk (eth_tx_clk),
+		.tx_clk90 (enet_gtx_clk)
 	);
 
+	// Shift 90 degrees so the clock edge is in the middle of data
+	// instead of edge-aligned.
 	wire enet_rx_clk90;
 	eth_rx_pll eth_rx_pll_blk (
 		.phy_rx_clk (enet_rx_clk),
 		.phy_rx_clk90 (enet_rx_clk90)
 	);
-
-	// Delay the data by one 125MHz cycle to help the skew
-	// A poor man's timing constraint until I get the real timing
-	// constraints nailed down.
-	reg [7:0] delay_enet_rxd = 8'd0;
-	reg [2:0] delay_enet_rx_clk = 3'b00;
-	reg [1:0] delay_enet_dv = 2'b00;
-	always @ (posedge clkin_125)
-	begin
-		delay_enet_rxd <= {delay_enet_rxd[3:0], enet_rxd};
-		delay_enet_rx_clk <= {delay_enet_rx_clk[1:0], enet_rx_clk};
-		delay_enet_dv <= {delay_enet_dv[0], enet_rx_dv};
-	end
 
 
 	minimac2 # (
@@ -515,7 +505,7 @@ module lm32_test_top (
 		.phy_rst_n(enet_resetn)		
 	);
 
-	assign enet_gtx_clk = eth_tx_clk;
+	//assign enet_gtx_clk = eth_tx_clk;
 
 
 endmodule
