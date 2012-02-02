@@ -1,5 +1,6 @@
 /*
- * Milkymist VJ SoC
+ * Derived from Milkymist VJ SoC
+ * Copyright (C) 2012 William Heatley
  * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
@@ -14,8 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-// Heavily modified version of sysctl from Milkymist
 
 module gpio #(
 	parameter csr_addr = 4'h0
