@@ -427,7 +427,7 @@ wire x_result_sel_sext_d;                       // Select X stage result from si
 reg x_result_sel_sext_x;
 `endif
 wire x_result_sel_logic_d;                      // Select X stage result from logic op unit
-reg x_result_sel_logic_x;
+//reg x_result_sel_logic_x;
 `ifdef CFG_USER_ENABLED
 wire x_result_sel_user_d;                       // Select X stage result from user-defined logic
 reg x_result_sel_user_x;
@@ -487,16 +487,16 @@ reg scall_x;
 wire eret_d;                                    // Indicates an eret instruction
 reg eret_x;
 wire eret_q_x;
-reg eret_m;
 `ifdef CFG_TRACE_ENABLED
+reg eret_m;
 reg eret_w;
 `endif
 `ifdef CFG_DEBUG_ENABLED
 wire bret_d;                                    // Indicates a bret instruction
 reg bret_x;
 wire bret_q_x;
-reg bret_m;
 `ifdef CFG_TRACE_ENABLED
+reg bret_m;
 reg bret_w;
 `endif
 `endif
@@ -639,8 +639,8 @@ reg [`LM32_PC_RNG] pc_c;                        // PC of last commited instructi
 `ifdef CFG_EBR_POSEDGE_REGISTER_FILE
 wire [`LM32_INSTRUCTION_RNG] instruction_f;     // Instruction in F stage
 `endif
-//pragma attribute instruction_d preserve_signal true
-//pragma attribute instruction_d preserve_driver true
+/*//pragma attribute instruction_d preserve_signal true
+//pragma attribute instruction_d preserve_driver true*/
 wire [`LM32_INSTRUCTION_RNG] instruction_d;     // Instruction in D stage
 `ifdef CFG_ICACHE_ENABLED
 wire iflush;                                    // Flush instruction cache
@@ -966,7 +966,8 @@ lm32_decoder decoder (
     .csr_write_enable       (csr_write_enable_d)
     ); 
 
-// Load/store unit       
+// Load/store unit
+wire load_q_m, store_q_m;
 lm32_load_store_unit #(
     .associativity          (dcache_associativity),
     .sets                   (dcache_sets),
@@ -1199,10 +1200,13 @@ lm32_jtag jtag (
     .jtag_reg_d             (jtag_reg_d),
     .jtag_reg_addr_d        (jtag_reg_addr_d)
     );
+`else
+	assign reset_exception = 1'b0;
 `endif
 
 `ifdef CFG_DEBUG_ENABLED
 // Debug unit
+wire bp_match, wp_match;
 lm32_debug #(
     .breakpoints            (breakpoints),
     .watchpoints            (watchpoints)
@@ -1940,7 +1944,7 @@ assign stall_m =    (stall_wb_load == `TRUE)
 
 // Qualify state changing control signals
 `ifdef LM32_MC_ARITHMETIC_ENABLED
-assign q_d = (valid_d == `TRUE) && (kill_d == `FALSE);
+wire q_d = (valid_d == `TRUE) && (kill_d == `FALSE);
 `endif
 `ifdef CFG_MC_BARREL_SHIFT_ENABLED
 assign shift_left_q_d = (shift_left_d == `TRUE) && (q_d == `TRUE);
@@ -1974,7 +1978,7 @@ assign store_q_x = (store_x == `TRUE)
 `ifdef CFG_USER_ENABLED
 assign user_valid = (x_result_sel_user_x == `TRUE) && (q_x == `TRUE);
 `endif                              
-assign q_m = (valid_m == `TRUE) && (kill_m == `FALSE) && (exception_m == `FALSE);
+wire q_m = (valid_m == `TRUE) && (kill_m == `FALSE) && (exception_m == `FALSE);
 assign load_q_m = (load_m == `TRUE) && (q_m == `TRUE);
 assign store_q_m = (store_m == `TRUE) && (q_m == `TRUE);
 `ifdef CFG_DEBUG_ENABLED
@@ -2324,7 +2328,7 @@ begin
 `ifdef CFG_SIGN_EXTEND_ENABLED
         x_result_sel_sext_x <= `FALSE;
 `endif    
-        x_result_sel_logic_x <= `FALSE;
+        //x_result_sel_logic_x <= `FALSE;
 `ifdef CFG_USER_ENABLED
         x_result_sel_user_x <= `FALSE;
 `endif
@@ -2440,7 +2444,7 @@ begin
 `ifdef CFG_SIGN_EXTEND_ENABLED
             x_result_sel_sext_x <= x_result_sel_sext_d;
 `endif    
-            x_result_sel_logic_x <= x_result_sel_logic_d;
+            //x_result_sel_logic_x <= x_result_sel_logic_d;
 `ifdef CFG_USER_ENABLED
             x_result_sel_user_x <= x_result_sel_user_d;
 `endif
@@ -2560,13 +2564,13 @@ begin
 `endif
 `ifdef CFG_TRACE_ENABLED
             eid_m <= eid_x;
+				eret_m <= eret_q_x;
+`ifdef CFG_DEBUG_ENABLED
+            bret_m <= bret_q_x; 
+`endif
 `endif
 `ifdef CFG_DCACHE_ENABLED
             dflush_m <= dflush_x;
-`endif
-            eret_m <= eret_q_x;
-`ifdef CFG_DEBUG_ENABLED
-            bret_m <= bret_q_x; 
 `endif
             write_enable_m <= exception_x == `TRUE ? `TRUE : write_enable_x;            
 `ifdef CFG_DEBUG_ENABLED

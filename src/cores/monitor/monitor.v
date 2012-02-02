@@ -58,7 +58,7 @@ module monitor (
 		.EBR_STB_I (wb_stb_i),
 		.EBR_SEL_I (wb_sel_i),
 		.EBR_CTI_I (),
-		.EBR_BTE (),
+		.EBR_BTE_I (),
 		.EBR_LOCK_I (),
 		.EBR_DAT_O (wb_dat_o),
 		.EBR_ACK_O (wb_ack_o),

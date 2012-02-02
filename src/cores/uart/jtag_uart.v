@@ -14,7 +14,7 @@ module jtag_uart # (
 );
 
 	wire wfifo_empty, rfifo_full;
-	reg fifo_wr = 1'b0;
+	//reg fifo_wr = 1'b0;
 
 	wire [7:0] jtag_data, jtag_q;
 	wire jtag_can_write, jtag_can_read;
@@ -81,7 +81,23 @@ module jtag_uart # (
 		.t_dat (jtag_q),
 		.t_dav (jtag_rd),
 		.t_ena (jtag_can_read),
-		.t_pause ()	// UART Pause/Break
+		.t_pause (),	// UART Pause/Break
+		.raw_tck (),
+		.tck (),
+		.tdi (),
+		.rti (),
+		.shift (),
+		.update (),
+		.usr1 (),
+		.clr (),
+		.ena (),
+		.ir_in (),
+		.tdo (),
+		.ir_out (),
+		.jtag_state_cdr (),
+		.jtag_state_sdr (),
+		.jtag_state_udr (),
+		.irq ()
 	);
 
 

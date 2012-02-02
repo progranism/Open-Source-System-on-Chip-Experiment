@@ -277,7 +277,7 @@ module lm32_test_top (
 		.EBR_STB_I (ebr_stb),
 		.EBR_SEL_I (ebr_sel),
 		.EBR_CTI_I (ebr_cti),
-		.EBR_BTE (),
+		.EBR_BTE_I (),
 		.EBR_LOCK_I (),
 		.EBR_DAT_O (ebr_dat_w),
 		.EBR_ACK_O (ebr_ack),
@@ -466,7 +466,7 @@ module lm32_test_top (
 	// constraints nailed down.
 	reg [7:0] delay_enet_rxd = 8'd0;
 	reg [2:0] delay_enet_rx_clk = 3'b00;
-	reg [1:0] delay_enet_dv = 3'b00;
+	reg [1:0] delay_enet_dv = 2'b00;
 	always @ (posedge clkin_125)
 	begin
 		delay_enet_rxd <= {delay_enet_rxd[3:0], enet_rxd};

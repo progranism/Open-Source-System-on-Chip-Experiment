@@ -36,7 +36,6 @@ module virtual_wire (probe, source);
 	altsource_probe	altsource_probe_component (
 				.probe (probe),
 				.source (source)
-				// synopsys translate_off
 				,
 				.clrn (),
 				.ena (),
@@ -55,7 +54,6 @@ module virtual_wire (probe, source);
 				.tdi (),
 				.tdo (),
 				.usr1 ()
-				// synopsys translate_on
 				);
 	defparam
 		altsource_probe_component.enable_metastability = "NO",

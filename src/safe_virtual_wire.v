@@ -38,7 +38,6 @@ module safe_virtual_wire #(
 				.probe (rx_probe),
 				.source_clk (rx_clk),
 				.source (tx_source)
-				// synopsys translate_off
 				,
 				.clrn (),
 				.ena (),
@@ -56,7 +55,6 @@ module safe_virtual_wire #(
 				.tdi (),
 				.tdo (),
 				.usr1 ()
-				// synopsys translate_on
 				);
 	defparam
 		altsource_probe_component.enable_metastability = "YES",
