@@ -10,10 +10,16 @@ derive_pll_clocks
 derive_clock_uncertainty
 
 
-# Currently assuming that RXD is invalid from -1.0ns to 1.0ns surrounding the
-# rising edge of RX_CLK.
-#set_input_delay -min -1.0 -clock "enet_rx_clkc_virt" [get_ports {enet_rxd[*]}]
+##
+#set_multicycle_path 0 -setup -end -rise_from [get_clocks enet_rx_clkc_virt] -rise_to \ 
+#[get_clocks {enet_rx_clkc}]
+#set_multicycle_path 0 -setup -end -fall_from [get_clocks enet_rx_clkc_virt] -fall_to \ 
+#[get_clocks {enet_rx_clkc}]
 
-#set_input_delay -max 1.0 -clock "enet_rx_clkc_virt" [get_ports {enet_rxd[*]}]
+set_input_delay -min -0.5 -clock [get_clocks enet_rx_clkc_virt] [get_ports {enet_rxd[*]}]
+set_input_delay -min -0.5 -clock [get_clocks enet_rx_clkc_virt] [get_ports enet_rx_dv]
+
+set_input_delay -max 0.5 -clock [get_clocks enet_rx_clkc_virt] [get_ports {enet_rxd[*]}]
+set_input_delay -max 0.5 -clock [get_clocks enet_rx_clkc_virt] [get_ports enet_rx_dv]
 
 

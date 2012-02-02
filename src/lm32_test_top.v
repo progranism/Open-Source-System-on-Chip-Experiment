@@ -461,6 +461,12 @@ module lm32_test_top (
 		.tx_clk (eth_tx_clk)
 	);
 
+	wire enet_rx_clk90;
+	eth_rx_pll eth_rx_pll_blk (
+		.phy_rx_clk (enet_rx_clk),
+		.phy_rx_clk90 (enet_rx_clk90)
+	);
+
 	// Delay the data by one 125MHz cycle to help the skew
 	// A poor man's timing constraint until I get the real timing
 	// constraints nailed down.
@@ -501,9 +507,9 @@ module lm32_test_top (
 		.phy_tx_clk(eth_tx_clk),
 		.phy_tx_data(enet_txd),
 		.phy_tx_en(enet_tx_en),
-		.phy_rx_clk(delay_enet_rx_clk[2]),
-		.phy_rx_data(delay_enet_rxd[7:4]),
-		.phy_dv(delay_enet_dv[1]),
+		.phy_rx_clk(enet_rx_clk90),
+		.phy_rx_data(enet_rxd),
+		.phy_dv(enet_rx_dv),
 		.phy_mii_clk(enet_mdc),
 		.phy_mii_data(enet_mdio),
 		.phy_rst_n(enet_resetn)		
