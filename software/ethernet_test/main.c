@@ -44,12 +44,32 @@ static void ethreset_delay(void)
 	for (; count <= 2000000; ++count);
 }
 
+static void eth_soft_reset (void)
+{
+	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 15));
+	while (mdio_read (ETH_PHY_ADR, 0) & (1 << 15));
+}
+
+// Disable 1000Mbps negotiation.
+// NOTE: A software reset or re-auto negotiation is needed after calling this.
+static void eth_disable_1000 (void)
+{
+	int x = mdio_read (ETH_PHY_ADR, 9);
+	x &= ~((1 << 9) | (1 << 8));
+	mdio_write (ETH_PHY_ADR, 9, x);
+}
+
 static void ethreset(void)
 {
 	CSR_MINIMAC_SETUP = MINIMAC_SETUP_PHYRST;
 	ethreset_delay();
 	CSR_MINIMAC_SETUP = 0;
 	ethreset_delay();
+
+	// Hardware currently does not support 1000Mbps
+	// TODO: Hardware actually only supports 100Mbps right now...
+	eth_disable_1000 ();
+	eth_soft_reset ();
 }
 
 static void eth_print_status(void)
@@ -96,68 +116,43 @@ static void eth_print_status(void)
 	printf ("\n");
 }
 
+// Enables loopback on the Ethernet PHY.
+// NOTE: Software reset will disable loopback.
+static void eth_enable_loopback (void)
+{
+	// Set to 100Mbps
+	int x = mdio_read (ETH_PHY_ADR, 20) & ~(7 << 4);
+	mdio_write (ETH_PHY_ADR, 20,  x | (5 << 4));
+	eth_soft_reset ();
+
+	// Loopback
+	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 14));
+}
+
 int main(int i, char **c)
 {
 	int count = 0;
-	int x;
 
 	ethreset_delay();
 	ethreset();
 	print_mac();
-	ethreset();
-	ethreset_delay();
+	/*ethreset();
+	ethreset_delay();*/
 
 	// Test MDIO
 	printf ("I: PHY ID0: %04X\n", mdio_read (ETH_PHY_ADR, 2));
 	printf ("I: PHY ID1: %04X\n", mdio_read (ETH_PHY_ADR, 3));
 
-	// Disable 1000MB
-	x = mdio_read (ETH_PHY_ADR, 9);
-	x &= ~((1 << 9) | (1 << 8));
-	mdio_write (ETH_PHY_ADR, 9, x);
-
-	// Enable 100Mbps Loopback (NOTE: Software Reset clears this later)
-	printf ("LOOPBACK ENABLED: %04X\n", mdio_read (ETH_PHY_ADR, 0));
-	x = mdio_read (ETH_PHY_ADR, 20) & ~(7 << 4);
-	mdio_write (ETH_PHY_ADR, 20,  x | (5 << 4));
-	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 15));
-	while (mdio_read (ETH_PHY_ADR, 0) & (1 << 15));
-	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 14));
-
-	printf ("LOOPBACK ENABLED: %04X\n", mdio_read (ETH_PHY_ADR, 0));
-
-	// Enable timing adjustments on the PHY
-	// TODO: Doesn't seem to do anything?
-	//x = mdio_read (ETH_PHY_ADR, 20);
-	//x |= (1 << 7);	// RX adjustments (->FPGA)
-	//mdio_write (ETH_PHY_ADR, 20, x);
-
-	// Software reset
-	x = mdio_read (ETH_PHY_ADR, 0);
-	x |= (1 << 15);
-	mdio_write (ETH_PHY_ADR, 0, x);
-
-	while (mdio_read (ETH_PHY_ADR, 0) & (1 << 15));
-
-	// Restart auto negotiation
-	//x = mdio_read (ETH_PHY_ADR, 0);
-	//x |= (1 << 9);
-	//mdio_write (ETH_PHY_ADR, 0, x);
-
 	printf ("Waiting for ethernet link to come up...\n");
-	/*while (1) {
+	while (1) {
 		if (mdio_read (ETH_PHY_ADR, 17) & (1 << 10))
 			break;
-	}*/
+	}
 
 	eth_print_status ();
 
 
 	microudp_start (macadr, IPTOINT(192, 168, 10, 177));
-	//CSR_MINIMAC_STATE0 = MINIMAC_STATE_LOADED;
-	//CSR_MINIMAC_STATE1 = MINIMAC_STATE_LOADED;
-	//CSR_MINIMAC_SETUP = 0;
-	
 
 	printf ("Performing an ARP resolve...\n");
 	microudp_arp_resolve (IPTOINT(192, 168, 10, 101));

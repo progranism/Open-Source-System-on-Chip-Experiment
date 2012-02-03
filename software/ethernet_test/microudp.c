@@ -329,14 +329,14 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 	return 1;
 }
 
-/*static udp_callback rx_callback;*/
+static udp_callback rx_callback;
 
 static void process_ip(void)
 {
 	printf ("RECEIVED IP PACKET\n");
 
-	/*if(rxlen < (sizeof(struct ethernet_header)+sizeof(struct udp_frame))) return;
-	*//* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely *//*
+	if(rxlen < (sizeof(struct ethernet_header)+sizeof(struct udp_frame))) return;
+	/* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely */
 	if(rxbuffer->frame.contents.udp.ip.version != IP_IPV4) return;
 	// check disabled for QEMU compatibility
 	//if(rxbuffer->frame.contents.udp.ip.diff_services != 0) return;
@@ -348,13 +348,13 @@ static void process_ip(void)
 	if(rxbuffer->frame.contents.udp.udp.length < sizeof(struct udp_header)) return;
 
 	if(rx_callback)
-		rx_callback(rxbuffer->frame.contents.udp.ip.src_ip, rxbuffer->frame.contents.udp.udp.src_port, rxbuffer->frame.contents.udp.udp.dst_port, rxbuffer->frame.contents.udp.payload, rxbuffer->frame.contents.udp.udp.length-sizeof(struct udp_header));*/
+		rx_callback(rxbuffer->frame.contents.udp.ip.src_ip, rxbuffer->frame.contents.udp.udp.src_port, rxbuffer->frame.contents.udp.udp.dst_port, rxbuffer->frame.contents.udp.payload, rxbuffer->frame.contents.udp.udp.length-sizeof(struct udp_header));
 }
 
-/*void microudp_set_callback(udp_callback callback)
+void microudp_set_callback(udp_callback callback)
 {
 	rx_callback = callback;
-}*/
+}
 
 static void process_frame(void)
 {
@@ -363,6 +363,8 @@ static void process_frame(void)
 	unsigned int computed_crc;
 
 	printf ("Packet received. Checking...\n");
+
+	if (rxlen < 13) return;
 
 	//flush_cpu_dcache();
 	for(i=0;i<7;i++)
@@ -400,7 +402,7 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
-	//rx_callback = (udp_callback)0;
+	rx_callback = (udp_callback)0;
 
 	CSR_MINIMAC_STATE0 = MINIMAC_STATE_LOADED;
 	CSR_MINIMAC_STATE1 = MINIMAC_STATE_LOADED;
