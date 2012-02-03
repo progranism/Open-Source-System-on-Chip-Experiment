@@ -3,7 +3,7 @@
 module eth_clk_div (
 	input rx_clk125,
 	output reg tx_clk /* synthesis ALTERA_ATTRIBUTE="PRESERVE_REGISTER=ON" */,
-	output reg tx_clk90
+	output reg tx_clk90 /* synthesis ALTERA_ATTRIBUTE="PRESERVE_REGISTER=ON" */
 );
 
 	reg [12:0] counter = 13'd0;
@@ -20,7 +20,7 @@ module eth_clk_div (
 			counter <= counter + 13'd1;
 
 		gen_clk <= counter < 13'd2;
-		gen_clk90 <= (counter > 13'd0) && (counter < 13'd3);
+		gen_clk90 <= (counter <= 13'd2) && (counter >= 13'd1);
 	end
 
 	always @ (gen_clk or rx_clk125) tx_clk <= gen_clk;

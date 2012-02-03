@@ -36,7 +36,7 @@ struct ethernet_header {
 	unsigned short ethertype;
 } __attribute__((packed));
 
-/*static void fill_eth_header(struct ethernet_header *h, const unsigned char *destmac, const unsigned char *srcmac, unsigned short ethertype)
+static void fill_eth_header(struct ethernet_header *h, const unsigned char *destmac, const unsigned char *srcmac, unsigned short ethertype)
 {
 	int i;
 
@@ -48,7 +48,7 @@ struct ethernet_header {
 	for(i=0;i<6;i++)
 		h->srcmac[i] = srcmac[i];
 	h->ethertype = ethertype;
-}*/
+}
 
 #define ARP_HWTYPE_ETHERNET 0x0001
 #define ARP_PROTO_IP        0x0800
@@ -121,7 +121,7 @@ static ethernet_buffer *rxbuffer1;
 static int txlen;
 static ethernet_buffer *txbuffer;
 
-/*static void send_packet(void)
+static void send_packet(void)
 {
 	unsigned int crc;
 	
@@ -132,9 +132,11 @@ static ethernet_buffer *txbuffer;
 	txbuffer->raw[txlen+3] = (crc & 0xff000000) >> 24;
 	txlen += 4;
 	CSR_MINIMAC_TXCOUNT = txlen;
-	while((irq_pending() & IRQ_ETHTX) == 0);
-	irq_ack(IRQ_ETHTX);
-}*/
+	//while((irq_pending() & IRQ_ETHTX) == 0);
+	//irq_ack(IRQ_ETHTX);
+	// TODO: Use interrupts
+	while (CSR_MINIMAC_TXCOUNT != 0);	// Set to 0 once packet has been sent
+}
 
 static unsigned char my_mac[6];
 static unsigned int my_ip;
@@ -147,7 +149,7 @@ static void process_arp(void)
 {
 	printf ("RECEIVED ARP PACKET\n");
 
-	/*if(rxlen < 68) return;
+	if(rxlen < 68) return;
 	if(rxbuffer->frame.contents.arp.hwtype != ARP_HWTYPE_ETHERNET) return;
 	if(rxbuffer->frame.contents.arp.proto != ARP_PROTO_IP) return;
 	if(rxbuffer->frame.contents.arp.hwsize != 6) return;
@@ -184,15 +186,23 @@ static void process_arp(void)
 		}
 		return;
 	}
-*/}
+}
 
 static const unsigned char broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-/*int microudp_arp_resolve(unsigned int ip)
+int microudp_arp_resolve(unsigned int ip)
 {
 	int i;
 	int tries;
-	int timeout;
+	volatile int timeout;
+
+	// Broadcast
+	if (ip == 0xFFFFFFFF) {
+		cached_ip = ip;
+		for (i = 0; i < 6; ++i)
+			cached_mac[i] = 0xFF;
+		return 1;
+	}
 
 	if(cached_ip == ip) {
 		for(i=0;i<6;i++)
@@ -202,9 +212,9 @@ static const unsigned char broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
-	for(tries=0;tries<5;tries++) {*/
+	for(tries=0;tries<5;tries++) {
 		/* Send an ARP request */
-		/*fill_eth_header(&txbuffer->frame.eth_header,
+		fill_eth_header(&txbuffer->frame.eth_header,
 				broadcast,
 				my_mac,
 				ETHERTYPE_ARP);
@@ -220,10 +230,10 @@ static const unsigned char broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 		txbuffer->frame.contents.arp.target_ip = ip;
 		for(i=0;i<6;i++)
 			txbuffer->frame.contents.arp.target_mac[i] = 0;
-		send_packet();*/
+		send_packet();
 
 		/* Do we get a reply ? */
-		/*for(timeout=0;timeout<2000000;timeout++) {
+		for(timeout=0;timeout<2000000;timeout++) {
 			microudp_service();
 			for(i=0;i<6;i++)
 				if(cached_mac[i]) return 1;
@@ -242,10 +252,10 @@ static unsigned short ip_checksum(unsigned int r, void *buffer, unsigned int len
 	length >>= 1;
 
 	for(i=0;i<length;i++)
-		r += ((unsigned int)(ptr[2*i]) << 8)|(unsigned int)(ptr[2*i+1]) ;*/
+		r += ((unsigned int)(ptr[2*i]) << 8)|(unsigned int)(ptr[2*i+1]) ;
 
 	/* Add overflows */
-	/*while(r >> 16)
+	while(r >> 16)
 		r = (r & 0xffff) + (r >> 16);
 
 	if(complete) {
@@ -319,7 +329,7 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 	return 1;
 }
 
-static udp_callback rx_callback;*/
+/*static udp_callback rx_callback;*/
 
 static void process_ip(void)
 {

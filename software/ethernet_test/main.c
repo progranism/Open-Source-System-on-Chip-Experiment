@@ -28,7 +28,7 @@
 #define ETH_PHY_ADR 18
 
 
-const unsigned char macadr[] = {0xF6, 0x13, 0x06, 0xE8, 0x53, 0xDF};
+const unsigned char macadr[] = {0x00, 0x13, 0x06, 0xE8, 0x53, 0xDF};
 
 
 static void print_mac(void)
@@ -116,11 +116,21 @@ int main(int i, char **c)
 	x &= ~((1 << 9) | (1 << 8));
 	mdio_write (ETH_PHY_ADR, 9, x);
 
+	// Enable 100Mbps Loopback (NOTE: Software Reset clears this later)
+	printf ("LOOPBACK ENABLED: %04X\n", mdio_read (ETH_PHY_ADR, 0));
+	x = mdio_read (ETH_PHY_ADR, 20) & ~(7 << 4);
+	mdio_write (ETH_PHY_ADR, 20,  x | (5 << 4));
+	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 15));
+	while (mdio_read (ETH_PHY_ADR, 0) & (1 << 15));
+	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 14));
+
+	printf ("LOOPBACK ENABLED: %04X\n", mdio_read (ETH_PHY_ADR, 0));
+
 	// Enable timing adjustments on the PHY
 	// TODO: Doesn't seem to do anything?
-	x = mdio_read (ETH_PHY_ADR, 20);
+	//x = mdio_read (ETH_PHY_ADR, 20);
 	//x |= (1 << 7);	// RX adjustments (->FPGA)
-	mdio_write (ETH_PHY_ADR, 20, x);
+	//mdio_write (ETH_PHY_ADR, 20, x);
 
 	// Software reset
 	x = mdio_read (ETH_PHY_ADR, 0);
@@ -135,10 +145,10 @@ int main(int i, char **c)
 	//mdio_write (ETH_PHY_ADR, 0, x);
 
 	printf ("Waiting for ethernet link to come up...\n");
-	while (1) {
+	/*while (1) {
 		if (mdio_read (ETH_PHY_ADR, 17) & (1 << 10))
 			break;
-	}
+	}*/
 
 	eth_print_status ();
 
@@ -147,6 +157,13 @@ int main(int i, char **c)
 	//CSR_MINIMAC_STATE0 = MINIMAC_STATE_LOADED;
 	//CSR_MINIMAC_STATE1 = MINIMAC_STATE_LOADED;
 	//CSR_MINIMAC_SETUP = 0;
+	
+
+	printf ("Performing an ARP resolve...\n");
+	microudp_arp_resolve (IPTOINT(192, 168, 10, 101));
+	printf ("Done performing ARP resolve!\n");
+
+	microudp_arp_resolve (0xFFFFFFFF);
 
 
    	// Some silly test loop
@@ -155,6 +172,13 @@ int main(int i, char **c)
 		if (count == 1000000) {
 			CSR_GPIO = (CSR_GPIO&1) ? 0xF0F0F0F0 : 0x0F0F0F0F;
 			count = 0;
+
+			// Ethernet test packet
+			printf ("Sending a test UDP packet.\n");
+			char *packet_data = microudp_get_tx_buffer();
+			sprintf (packet_data, "Guten Tag");
+			microudp_send (7642, 69, 10);
+			printf ("Done sending the test UDP packet.\n");
 		}
 
 		count++;

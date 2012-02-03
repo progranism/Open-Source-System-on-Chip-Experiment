@@ -24,8 +24,10 @@ module minimac2_altera_memory (
 	wire [3:0] phy_sel = {phy_adr_byte == 2'b11, phy_adr_byte == 2'b10, phy_adr_byte == 2'b01, phy_adr_byte == 2'b00};
 
 	wire [31:0] phy_big_dat_o;
-	assign phy_dat_o = phy_sel[3] ? phy_big_dat_o[31:24] : phy_sel[2] ? phy_big_dat_o[23:16] : phy_sel[1] ? phy_big_dat_o[15:8] : phy_big_dat_o[7:0];
+	reg [3:0] phy_sel_r = 4'd0;
+	assign phy_dat_o = phy_sel_r[3] ? phy_big_dat_o[31:24] : phy_sel_r[2] ? phy_big_dat_o[23:16] : phy_sel_r[1] ? phy_big_dat_o[15:8] : phy_big_dat_o[7:0];
 
+	always @ (posedge phy_clk) phy_sel_r <= phy_sel;
 
 altsyncram # (
 	.address_reg_b ("CLOCK1"),
