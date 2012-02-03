@@ -1,6 +1,6 @@
 /*
  * Derived from Milkymist SoC (Software)
- * Copyright (C) 2012 William Heatley
+ * Copyright (C) 2012 fpgaminer
  * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,18 +16,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __NET_MDIO_H
-#define __NET_MDIO_H
+#ifndef __CONSOLE_H
+#define __CONSOLE_H
 
-#define ETH_PHY_ADR 18
+typedef void (*console_write_hook)(char);
+typedef char (*console_read_hook)(void);
+typedef int (*console_read_nonblock_hook)(void);
 
-void mdio_write(int phyadr, int reg, int val);
-int mdio_read(int phyadr, int reg);
+// If enabled (Enabled by default), all output is formatted so that GDB
+// will output it to the console.
+void console_set_gdb_console_output (char enable);
 
-void eth_soft_reset (void);
-void eth_disable_1000 (void);
-void eth_reset (void);
-void eth_print_status (void);
-void eth_enable_loopback (void);
+void console_set_write_hook(console_write_hook h);
+void console_set_read_hook(console_read_hook r, console_read_nonblock_hook rn);
 
-#endif /* __NET_MDIO_H */
+char readchar(void);
+int readchar_nonblock(void);
+
+int puts(const char *s);
+void putsnonl(const char *s);
+
+#endif /* __CONSOLE_H */

@@ -36,43 +36,7 @@ static void print_mac(void)
 	printf("I: MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
 }
 
-static void ethreset_delay(void)
-{
-	volatile int count = 0;
-
-	// TODO: Use a real timer
-	for (; count <= 2000000; ++count);
-}
-
-static void eth_soft_reset (void)
-{
-	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 15));
-	while (mdio_read (ETH_PHY_ADR, 0) & (1 << 15));
-}
-
-// Disable 1000Mbps negotiation.
-// NOTE: A software reset or re-auto negotiation is needed after calling this.
-static void eth_disable_1000 (void)
-{
-	int x = mdio_read (ETH_PHY_ADR, 9);
-	x &= ~((1 << 9) | (1 << 8));
-	mdio_write (ETH_PHY_ADR, 9, x);
-}
-
-static void ethreset(void)
-{
-	CSR_MINIMAC_SETUP = MINIMAC_SETUP_PHYRST;
-	ethreset_delay();
-	CSR_MINIMAC_SETUP = 0;
-	ethreset_delay();
-
-	// Hardware currently does not support 1000Mbps
-	// TODO: Hardware actually only supports 100Mbps right now...
-	eth_disable_1000 ();
-	eth_soft_reset ();
-}
-
-static void eth_print_status(void)
+void eth_print_status(void)
 {
 	int status = mdio_read (ETH_PHY_ADR, 17);
 	if (status & (1 << 10))
@@ -116,28 +80,15 @@ static void eth_print_status(void)
 	printf ("\n");
 }
 
-// Enables loopback on the Ethernet PHY.
-// NOTE: Software reset will disable loopback.
-static void eth_enable_loopback (void)
-{
-	// Set to 100Mbps
-	int x = mdio_read (ETH_PHY_ADR, 20) & ~(7 << 4);
-	mdio_write (ETH_PHY_ADR, 20,  x | (5 << 4));
-	eth_soft_reset ();
-
-	// Loopback
-	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 14));
-}
-
 int main(int i, char **c)
 {
-	int count = 0;
+	volatile int count = 0;
 
-	ethreset_delay();
-	ethreset();
+	// Boot up delay ... not sure if I need this for the Ethernet PHY?
+	for (count = 0; count <= 2000000; ++count);
+
+	eth_reset();
 	print_mac();
-	/*ethreset();
-	ethreset_delay();*/
 
 	// Test MDIO
 	printf ("I: PHY ID0: %04X\n", mdio_read (ETH_PHY_ADR, 2));
@@ -164,7 +115,7 @@ int main(int i, char **c)
    	// Some silly test loop
 	while (1)
 	{
-		if (count == 1000000) {
+		if (count >= 1000000) {
 			CSR_GPIO = (CSR_GPIO&1) ? 0xF0F0F0F0 : 0x0F0F0F0F;
 			count = 0;
 
@@ -178,10 +129,10 @@ int main(int i, char **c)
 
 		count++;
 
-		if (CSR_UART_RX != 0 && CSR_UART_TX == 0) {
+		/*if (CSR_UART_RX != 0 && CSR_UART_TX == 0) {
 			CSR_UART_TX = CSR_UART_RX & 0xFF;
 			CSR_UART_RX = 0;
-		}
+		}*/
 
 		microudp_service ();
 	}

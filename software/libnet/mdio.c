@@ -108,3 +108,54 @@ int mdio_read(int phyadr, int reg)
 	return r;
 }
 
+
+// Higher level functions
+static void eth_reset_delay(void)
+{
+	volatile int count = 0;
+
+	// TODO: Use a real timer
+	for (; count <= 2000000; ++count);
+}
+
+void eth_soft_reset (void)
+{
+	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 15));
+	while (mdio_read (ETH_PHY_ADR, 0) & (1 << 15));
+}
+
+// Disable 1000Mbps negotiation.
+// NOTE: A software reset or re-auto negotiation is needed after calling this.
+void eth_disable_1000 (void)
+{
+	int x = mdio_read (ETH_PHY_ADR, 9);
+	x &= ~((1 << 9) | (1 << 8));
+	mdio_write (ETH_PHY_ADR, 9, x);
+}
+
+void eth_reset(void)
+{
+	CSR_MINIMAC_SETUP = MINIMAC_SETUP_PHYRST;
+	eth_reset_delay();
+	CSR_MINIMAC_SETUP = 0;
+	eth_reset_delay();
+
+	// Hardware currently does not support 1000Mbps
+	// TODO: Hardware actually only supports 100Mbps right now...
+	eth_disable_1000 ();
+	eth_soft_reset ();
+}
+
+// Enables loopback on the Ethernet PHY.
+// NOTE: Software reset will disable loopback.
+void eth_enable_loopback (void)
+{
+	// Set to 100Mbps
+	int x = mdio_read (ETH_PHY_ADR, 20) & ~(7 << 4);
+	mdio_write (ETH_PHY_ADR, 20,  x | (5 << 4));
+	eth_soft_reset ();
+
+	// Loopback
+	mdio_write (ETH_PHY_ADR, 0, mdio_read (ETH_PHY_ADR, 0) | (1 << 14));
+}
+

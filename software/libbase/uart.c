@@ -16,18 +16,43 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __NET_MDIO_H
-#define __NET_MDIO_H
+#include <uart.h>
+//#include <irq.h>
+#include <hw/uart.h>
+//#include <hw/interrupts.h>
 
-#define ETH_PHY_ADR 18
 
-void mdio_write(int phyadr, int reg, int val);
-int mdio_read(int phyadr, int reg);
+void uart_isr(void)
+{
+}
 
-void eth_soft_reset (void);
-void eth_disable_1000 (void);
-void eth_reset (void);
-void eth_print_status (void);
-void eth_enable_loopback (void);
+/* Do not use in interrupt handlers! */
+char uart_read(void)
+{
+	char c;
 
-#endif /* __NET_MDIO_H */
+	while (!CSR_UART_RX);	
+	c = CSR_UART_RX & 0xFF;
+	CSR_UART_RX = 0;
+	return c;
+}
+
+int uart_read_nonblock(void)
+{
+	return CSR_UART_RX != 0;
+}
+
+void uart_write(char c)
+{
+	while (CSR_UART_TX);
+	CSR_UART_TX = c;
+}
+
+void uart_init(void)
+{
+}
+
+void uart_force_sync(int f)
+{
+}
+

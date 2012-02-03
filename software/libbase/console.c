@@ -16,18 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <hw/uart.h>
-//#include <console.h>
-//#include <stdio.h>
+#include <uart.h>
+#include <console.h>
+#include <stdio.h>
 #include <stdarg.h>
 #include <irq.h>
 //#include <hw/interrupts.h>
 
-//static console_write_hook write_hook;
-//static console_read_hook read_hook;
-//static console_read_nonblock_hook read_nonblock_hook;
+static console_write_hook write_hook;
+static console_read_hook read_hook;
+static console_read_nonblock_hook read_nonblock_hook;
 
-/*void console_set_write_hook(console_write_hook h)
+static char use_gdb_console_output = 1;
+
+// If enabled (Enabled by default), all output is formatted so that GDB
+// will output it to the console.
+void console_set_gdb_console_output (char enable)
+{
+	use_gdb_console_output = enable;
+}
+
+void console_set_write_hook(console_write_hook h)
 {
 	write_hook = h;
 }
@@ -36,34 +45,13 @@ void console_set_read_hook(console_read_hook r, console_read_nonblock_hook rn)
 {
 	read_hook = r;
 	read_nonblock_hook = rn;
-}*/
-
-static void uart_write(char c)
-{
-	while (CSR_UART_TX);
-	CSR_UART_TX = c;
-}
-
-static char uart_read(void)
-{
-	char c;
-
-	while (!CSR_UART_RX);	
-	c = CSR_UART_RX & 0xFF;
-	CSR_UART_RX = 0;
-	return c;
-}
-
-static int uart_read_nonblock(void)
-{
-	return CSR_UART_RX != 0;
 }
 
 static void writechar(char c)
 {
 	uart_write(c);
-	//if(write_hook != NULL)
-		//write_hook(c);
+	if(write_hook != NULL)
+		write_hook(c);
 }
 
 char readchar(void)
@@ -71,15 +59,15 @@ char readchar(void)
 	while(1) {
 		if(uart_read_nonblock())
 			return uart_read();
-		//if((read_nonblock_hook != NULL) && read_nonblock_hook())
-			//return read_hook();
+		if((read_nonblock_hook != NULL) && read_nonblock_hook())
+			return read_hook();
 	}
 }
 
 int readchar_nonblock(void)
 {
-	return (uart_read_nonblock());
-//		|| ((read_nonblock_hook != NULL) && read_nonblock_hook()));
+	return (uart_read_nonblock()
+		|| ((read_nonblock_hook != NULL) && read_nonblock_hook()));
 }
 
 int puts(const char *s)
@@ -101,14 +89,35 @@ int puts(const char *s)
 
 void putsnonl(const char *s)
 {
+	static const char large_digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	//unsigned int oldmask;
 
 	//oldmask = irq_getmask();
 	//irq_setmask(IRQ_UART); // HACK: prevent UART data loss
 	
+	unsigned char checksum = 'O';
+	char c;
+	
+	if (use_gdb_console_output) {
+		writechar('$'); writechar('O');
+	}
+	
 	while(*s) {
-		writechar(*s);
+		if (use_gdb_console_output) {
+			checksum += (c = large_digits[*s >> 4]);
+			writechar(c);
+			checksum += (c = large_digits[*s & 0xF]);
+			writechar(c);
+		}
+		else
+			writechar(*s);
 		s++;
+	}
+
+	if (use_gdb_console_output) {
+		writechar('#');
+		writechar(large_digits[checksum >> 4]);
+		writechar(large_digits[checksum & 0xF]);
 	}
 	
 	//irq_setmask(oldmask);
