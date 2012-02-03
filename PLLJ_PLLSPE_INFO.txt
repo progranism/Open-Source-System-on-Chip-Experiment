@@ -1,5 +1,0 @@
-PLL_Name	eth_rx_pll:eth_rx_pll_blk|altpll:altpll_component|eth_rx_pll_altpll:auto_generated|pll1
-PLLJITTER	31
-PLLSPEmax	84
-PLLSPEmin	-53
-
