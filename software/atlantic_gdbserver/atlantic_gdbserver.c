@@ -27,32 +27,14 @@
 #include "fcntl.h"
 
 
+void handle_client (SOCKET client);
+
 int main (int argc, char *argv[])
 {
-	JTAGATLANTIC *link;
 	SOCKET server, client;
 	WSADATA wsaData;
 	sockaddr_in local, from;
-	u_long iMode = 1;
 	int from_len = sizeof(from), nError;
-
-
-	// Set up Atlantic UART Link
-	printf ("Openning JTAG Atlantic Link...\n");
-	link = jtagatlantic_open (0, 0x0, -1, 0);
-
-	if (!link) {
-		printf ("Unable to open JTAG Atlantic link.\n");
-		return -1;
-	}
-
-	printf ("Link established.\n\n");
-
-	if (jtagatlantic_flush(link)) {
-		printf("\n\nError on JTAG Link flush\n\nExiting\n");
-	        return(-1);
-	}
-
 
 	// Set up TCP server
 	if (WSAStartup (0x101, &wsaData)) {
@@ -85,10 +67,46 @@ int main (int argc, char *argv[])
 
 
 	// Main loop
-	client = accept (server, (struct sockaddr*)&from, &from_len);
+	while (1)
+	{
+		client = accept (server, (struct sockaddr*)&from, &from_len);
 
+		handle_client (client);
+
+		shutdown(client, SD_SEND);
+		closesocket (client);
+	}
+	
+	closesocket (server);
+	WSACleanup ();
+
+	return 0;
+}
+
+void handle_client (SOCKET client)
+{
+	JTAGATLANTIC *link;
+	u_long iMode = 1;
+	int nError;
+
+	// Non-blocking
 	ioctlsocket (client, FIONBIO, &iMode);
 
+	// Open the JTAG Atlantic link
+	link = jtagatlantic_open (0, 0x0, -1, 0);
+
+	if (!link) {
+		printf ("Unable to open JTAG Atlantic link.\n");
+		return;
+	}
+
+	if (jtagatlantic_flush(link)) {
+		printf("\n\nError on JTAG Link flush\n\nExiting\n");
+		jtagatlantic_close (link);
+	        return;
+	}
+
+	// Looping loop
 	while (1)
 	{
 		char temp[64];
@@ -100,7 +118,7 @@ int main (int argc, char *argv[])
 		nError = WSAGetLastError ();
 
 		if (nError != WSAEWOULDBLOCK && nError != 0) {
-			printf ("\n\nError reading socket: %d\nExiting\n\n", nError);
+			printf ("\n\nError reading socket: %d\n", nError);
 			break;
 		}
 
@@ -123,8 +141,8 @@ int main (int argc, char *argv[])
 				sent = send (client, temp, len, 0);
 
 				if (nError != WSAEWOULDBLOCK && nError != 0) {
-					printf ("\n\nError reading socket: %d\nExiting\n\n", nError);
-					return -1;
+					printf ("\n\nError writing to socket: %d\n", nError);
+					break;
 				}
 
 				if (sent > 0)
@@ -135,7 +153,7 @@ int main (int argc, char *argv[])
 		}
 
 		if (jtagatlantic_flush(link)) {
-			printf("\n\nError on JTAG Link flush\n\nExiting\n");
+			printf("\n\nError on JTAG Link flush\n\n");
 			break;
 		}
 
@@ -143,12 +161,5 @@ int main (int argc, char *argv[])
 	}
 
 	jtagatlantic_close (link);
-
-	shutdown(client, SD_SEND);
-	closesocket (client);
-	closesocket (server);
-	WSACleanup ();
-
-	return 0;
 }
 

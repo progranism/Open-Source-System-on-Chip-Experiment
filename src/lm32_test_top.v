@@ -42,12 +42,18 @@ module lm32_test_top (
 
 
 	//// System Reset
-	wire sys_rst;
+	//// System will be reset automatically on Power Up
+	wire sys_rst, sys_rst_vw;
+	reg initial_reset = 1'b1;
 	safe_virtual_wire # (
 		.PROBE_WIDTH(0), .SOURCE_WIDTH(1), .INSTANCE_ID("SRST")
 	) sys_rst_vw_blk (
-		.rx_clk (sys_clk), .rx_probe(), .tx_source(sys_rst)
+		.rx_clk (sys_clk), .rx_probe(), .tx_source(sys_rst_vw)
 	);
+
+	assign sys_rst = sys_rst_vw | initial_reset;
+
+	always @ (posedge sys_clk)	initial_reset <= 1'b0;
 
 
 	// RAM		0x00000000 (shadow @0x80000000)

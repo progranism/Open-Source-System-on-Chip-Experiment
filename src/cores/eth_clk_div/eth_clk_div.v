@@ -1,5 +1,5 @@
 
-// Currently this only spits out a 2.5MHz clock for 10Mbps ethernet
+// Currently this only spits out a 25MHz clock for 100Mbps ethernet
 module eth_clk_div (
 	input rx_clk125,
 	output reg tx_clk /* synthesis ALTERA_ATTRIBUTE="PRESERVE_REGISTER=ON" */,
