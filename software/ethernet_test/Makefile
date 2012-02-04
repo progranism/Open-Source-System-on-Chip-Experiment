@@ -1,7 +1,7 @@
 MMDIR=../..
 include $(MMDIR)/software/include.mak
 
-OBJECTS=crt0.o main.o
+OBJECTS=crt0.o main.o dhcp.o
 SEGMENTS=-j .text -j .data -j .rodata
 LIBS=$(MMDIR)/software/libbase/libbase-light.a $(MMDIR)/software/libnet/libnet.a
 

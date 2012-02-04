@@ -344,7 +344,7 @@ static void process_ip(void)
 	// check disabled for QEMU compatibility
 	//if(rxbuffer->frame.contents.udp.ip.fragment_offset != IP_DONT_FRAGMENT) return;
 	if(rxbuffer->frame.contents.udp.ip.proto != IP_PROTO_UDP) return;
-	if(rxbuffer->frame.contents.udp.ip.dst_ip != my_ip) return;
+	if(rxbuffer->frame.contents.udp.ip.dst_ip != my_ip && rxbuffer->frame.contents.udp.ip.dst_ip != 0xFFFFFFFF) return;
 	if(rxbuffer->frame.contents.udp.udp.length < sizeof(struct udp_header)) return;
 
 	if(rx_callback)
@@ -354,6 +354,16 @@ static void process_ip(void)
 void microudp_set_callback(udp_callback callback)
 {
 	rx_callback = callback;
+}
+
+unsigned char *microudp_get_mac (void)
+{
+	return my_mac;
+}
+
+void microudp_set_ip (unsigned int ip)
+{
+	my_ip = ip;
 }
 
 static void process_frame(void)
@@ -368,14 +378,17 @@ static void process_frame(void)
 
 	//flush_cpu_dcache();
 	for(i=0;i<7;i++)
-		if(rxbuffer->frame.eth_header.preamble[i] != 0x55) return;
-	if(rxbuffer->frame.eth_header.preamble[7] != 0xd5) return;
+		if(rxbuffer->frame.eth_header.preamble[i] != 0x55) {
+			printf ("Bad preamble\n");
+			return;
+		}
+	if(rxbuffer->frame.eth_header.preamble[7] != 0xd5) { printf("Bad preamble d5\n"); return;}
 	received_crc = ((unsigned int)rxbuffer->raw[rxlen-1] << 24)
 		|((unsigned int)rxbuffer->raw[rxlen-2] << 16)
 		|((unsigned int)rxbuffer->raw[rxlen-3] <<  8)
 		|((unsigned int)rxbuffer->raw[rxlen-4]);
 	computed_crc = crc32(&rxbuffer->raw[8], rxlen-12);
-	if(received_crc != computed_crc) return;
+	if(received_crc != computed_crc) {printf ("Bad CRC\n"); return; }
 
 	rxlen -= 4; /* strip CRC here to be consistent with TX */
 	if(rxbuffer->frame.eth_header.ethertype == ETHERTYPE_ARP) process_arp();

@@ -103,13 +103,15 @@ int main(int i, char **c)
 	eth_print_status ();
 
 
-	microudp_start (macadr, IPTOINT(192, 168, 10, 177));
+	microudp_start (macadr, IPTOINT(0, 0, 0, 0));
 
-	printf ("Performing an ARP resolve...\n");
+	/*printf ("Performing an ARP resolve...\n");
 	microudp_arp_resolve (IPTOINT(192, 168, 10, 101));
-	printf ("Done performing ARP resolve!\n");
+	printf ("Done performing ARP resolve!\n");*/
 
 	microudp_arp_resolve (0xFFFFFFFF);
+
+	dhcp_boot (macadr);
 
 
    	// Some silly test loop

@@ -6,3 +6,4 @@ quartus_output
 *.bak
 *.exe
 PLLJ_PLLSPE_INFO.txt
+*.o

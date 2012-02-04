@@ -1,6 +1,8 @@
 MMDIR=../..
 include $(MMDIR)/software/include.mak
 
+CFLAGS+=-O0 -g
+
 OBJECTS=mdio.o microudp.o
 
 all: libnet.a
