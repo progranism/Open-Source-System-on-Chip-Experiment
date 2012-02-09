@@ -131,6 +131,9 @@ int main(int i, char **c)
 
 		count++;
 
+		// Pipe incoming data into the void.
+		if (CSR_UART_RX) CSR_UART_RX = 0;
+
 		/*if (CSR_UART_RX != 0 && CSR_UART_TX == 0) {
 			CSR_UART_TX = CSR_UART_RX & 0xFF;
 			CSR_UART_RX = 0;

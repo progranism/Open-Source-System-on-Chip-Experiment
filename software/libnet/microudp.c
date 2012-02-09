@@ -73,6 +73,7 @@ struct arp_frame {
 #define IP_DONT_FRAGMENT	0x4000
 #define IP_TTL			64
 #define IP_PROTO_UDP		0x11
+#define IP_PROTO_TCP		0x06
 
 struct ip_header {
 	unsigned char version;
@@ -94,17 +95,42 @@ struct udp_header {
 	unsigned short checksum;
 } __attribute__((packed));
 
+struct tcp_header {
+	unsigned short src_port;
+	unsigned short dst_port;
+	unsigned int seqno;
+	unsigned int ackno;
+	unsigned char tcpoffset;
+	unsigned char flags;
+	unsigned short wnd;
+	unsigned short tcpchksum;
+	unsigned short urgp;
+	unsigned int optdata;
+} __attribute__((packed));
+
 struct udp_frame {
-	struct ip_header ip;
-	struct udp_header udp;
+	struct udp_header header;
 	char payload[];
+} __attribute__((packed));
+
+struct tcp_frame {
+	struct tcp_header header;
+	char payload[];
+} __attribute__((packed));
+
+struct ip_frame {
+	struct ip_header header;
+	union {
+		struct tcp_frame tcp;
+		struct udp_frame udp;
+	} contents;
 } __attribute__((packed));
 
 struct ethernet_frame {
 	struct ethernet_header eth_header;
 	union {
 		struct arp_frame arp;
-		struct udp_frame udp;
+		struct ip_frame ip;
 	} contents;
 } __attribute__((packed));
 
@@ -330,30 +356,58 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 }
 
 static udp_callback rx_callback;
+static tcp_callback rx_tcp_callback;
 
-static void process_ip(void)
+static void process_udp (unsigned int src_ip, struct udp_frame *udp, int len)
+{
+	if (len < sizeof (struct udp_header)) return;
+	if (udp->header.length > (len - sizeof (struct udp_header))) return;
+
+	if(rx_callback)
+		rx_callback (src_ip, udp->header.src_port, udp->header.dst_port, udp->payload, udp->header.length - sizeof (struct udp_header));
+}
+
+static void process_tcp (unsigned int src_ip, struct tcp_frame *tcp, int len)
+{
+	if (len < sizeof (struct tcp_header)) return;
+
+	unsigned int header_len = (tcp->header.tcpoffset & 0xF) << 2;
+
+	if (header_len > len) return;
+
+	unsigned char *payload = (unsigned char *)tcp;
+	payload += header_len;
+	
+	if (rx_tcp_callback)
+		rx_tcp_callback (src_ip, tcp->header.src_port, tcp->header.dst_port, payload, len - header_len);
+}
+
+static void process_ip(struct ip_frame *ip, int len)
 {
 	printf ("RECEIVED IP PACKET\n");
 
-	if(rxlen < (sizeof(struct ethernet_header)+sizeof(struct udp_frame))) return;
+	if (len < sizeof (struct ip_header)) return;
+	if (ip->header.total_length > len) return;
 	/* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely */
-	if(rxbuffer->frame.contents.udp.ip.version != IP_IPV4) return;
+	if(ip->header.version != IP_IPV4) return;
 	// check disabled for QEMU compatibility
 	//if(rxbuffer->frame.contents.udp.ip.diff_services != 0) return;
-	if(rxbuffer->frame.contents.udp.ip.total_length < sizeof(struct udp_frame)) return;
-	// check disabled for QEMU compatibility
-	//if(rxbuffer->frame.contents.udp.ip.fragment_offset != IP_DONT_FRAGMENT) return;
-	if(rxbuffer->frame.contents.udp.ip.proto != IP_PROTO_UDP) return;
-	if(rxbuffer->frame.contents.udp.ip.dst_ip != my_ip && rxbuffer->frame.contents.udp.ip.dst_ip != 0xFFFFFFFF) return;
-	if(rxbuffer->frame.contents.udp.udp.length < sizeof(struct udp_header)) return;
+	if(ip->header.dst_ip != 0xFFFFFFFF && ip->header.dst_ip != my_ip) return;
 
-	if(rx_callback)
-		rx_callback(rxbuffer->frame.contents.udp.ip.src_ip, rxbuffer->frame.contents.udp.udp.src_port, rxbuffer->frame.contents.udp.udp.dst_port, rxbuffer->frame.contents.udp.payload, rxbuffer->frame.contents.udp.udp.length-sizeof(struct udp_header));
+	if (ip->header.proto == IP_PROTO_UDP)
+		process_udp (ip->header.src_ip, &(ip->udp), ip->header.total_length - sizeof (struct ip_header));
+	else if (ip->header.proto == IP_PROTO_TCP)
+		process_tcp (&(ip->tcp), ip->header.total_length - sizeof (struct ip_header));
 }
 
 void microudp_set_callback(udp_callback callback)
 {
 	rx_callback = callback;
+}
+
+void microudp_set_tcp_callback (tcp_callback callback)
+{
+	rx_tcp_callback = callback;
 }
 
 unsigned char *microudp_get_mac (void)
