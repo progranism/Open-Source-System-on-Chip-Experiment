@@ -1,17 +1,10 @@
+MMDIR=../..
+include $(MMDIR)/software/include.mak
+
 OBJECTS=crt0.o gdbstub.o
 SEGMENTS=-j .text -j .data -j .rodata
-CC=lm32-elf-gcc
-LD=lm32-elf-ld
-OBJCOPY=lm32-elf-objcopy
 
-LDFLAGS = -nostdlib -nodefaultlibs
-INCLUDES_NOLIBC ?= -nostdinc
-INCLUDES = $(INCLUDES_NOLIBC) -I../include
-CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
-	 -mbarrel-shift-enabled -mmultiply-enabled \
-	 -msign-extend-enabled -fno-builtin -fsigned-char \
-	 -fsingle-precision-constant $(INCLUDES)
-
+# override optimization flags
 CFLAGS+=-Os
 
 all: gdbstub.elf gdbstub.bin gdbstub.mif
@@ -20,10 +13,11 @@ all: gdbstub.elf gdbstub.bin gdbstub.mif
 	$(OBJCOPY) $(SEGMENTS) -O binary $< $@
 
 %.mif: %.bin
-	../../tools/bin2mif $< $@ 2048
+	$(MMDIR)/tools/bin2mif $< $@ 2048
 
 gdbstub.elf: linker.ld $(OBJECTS)
 	$(LD) $(LDFLAGS) -T linker.ld -N -o $@ $(OBJECTS)
+	chmod -x $@
 
 .PHONY: clean depend
 
@@ -31,5 +25,6 @@ depend:
 	makedepend -Y -- $(CFLAGS) -- *.c
 
 clean:
-	rm -f *.o gdbstub.elf gdbstub.bin gdbstub.mif .*~ *~ Makefile.bak
+	rm -f *.o gdbstub.elf gdbstub.bin gdbstub.rom .*~ *~ Makefile.bak
+
 

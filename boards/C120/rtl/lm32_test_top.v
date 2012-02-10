@@ -56,10 +56,6 @@ module lm32_test_top (
 	always @ (posedge sys_clk)	initial_reset <= 1'b0;
 
 
-	// RAM		0x00000000 (shadow @0x80000000)
-	// Debug	0x10000000 (shadow @0x90000000)
-	// Ethernet     0x30000000 (shadow @0xb0000000)
-	// CSR bridge   0x60000000 (shadow @0xe0000000)
 	wire [31:0]	cpuibus_adr,
 			cpudbus_adr,
 			monitor_adr,
@@ -125,7 +121,15 @@ module lm32_test_top (
 	wire		cpuibus_err = 1'b0,
 			cpudbus_err = 1'b0;
 
-
+	//---------------------------------------------------------------------------
+	// Wishbone switch
+	//---------------------------------------------------------------------------
+	// RAM		0x00000000 (shadow @0x80000000)
+	// Debug	0x10000000 (shadow @0x90000000)
+	// Ethernet     0x30000000 (shadow @0xb0000000)
+	// CSR bridge   0x60000000 (shadow @0xe0000000)
+	
+	// MSB (Bit 31) is ignored for slave address decoding
 	conbus5x6 #(
 		.s0_addr(3'b000),	// RAM
 		.s1_addr(3'b001),	// Debug
@@ -272,7 +276,7 @@ module lm32_test_top (
 	//// RAM
 	wb_ebr_ctrl # (
 		.SIZE (32768),
-		.INIT_FILE ("software/ethernet_test/ethernet_test.mif")
+		.INIT_FILE ("software/bios/bios.mif")
 	) ram_blk (
 		.CLK_I (sys_clk),
 		.RST_I (sys_rst),
@@ -296,8 +300,7 @@ module lm32_test_top (
 	wire [13:0]	csr_a;
 	wire		csr_we;
 	wire [31:0]	csr_dw;
-	wire [31:0]	csr_dr_gpio,
-			csr_dr_jtag_uart,
+	wire [31:0]	csr_dr_jtag_uart,
 			csr_dr_sysctl,
 			csr_dr_ethernet;
 
@@ -317,38 +320,54 @@ module lm32_test_top (
 		.csr_we(csr_we),
 		.csr_do(csr_dw),
 		.csr_di(
-			csr_dr_gpio
-			|csr_dr_jtag_uart
+			csr_dr_jtag_uart
 			|csr_dr_sysctl
 			|csr_dr_ethernet
 		)
 	);
 
 
-	//// GPIO
-	wire [31:0] gpio_leds;
+	//// Interrupts
+	wire uart_irq;
+	wire gpio_irq = 1'b0;
+	wire timer0_irq;
+	wire timer1_irq;
+	wire ac97crrequest_irq = 1'b0;
+	wire ac97crreply_irq = 1'b0;
+	wire ac97dmar_irq = 1'b0;
+	wire ac97dmaw_irq = 1'b0;
+	wire pfpu_irq = 1'b0;
+	wire tmu_irq = 1'b0;
+	wire ethernetrx_irq;
+	wire ethernettx_irq;
+	wire videoin_irq = 1'b0;
+	wire midi_irq = 1'b0;
+	wire ir_irq = 1'b0;
+	wire usb_irq = 1'b0;
 
-	gpio #(
-		.csr_addr(4'h1)
-	) gpio (
-		.sys_clk(sys_clk),
-		.sys_rst(sys_rst),
-
-		.csr_a(csr_a),
-		.csr_we(csr_we),
-		.csr_di(csr_dw),
-		.csr_do(csr_dr_gpio),
-
-		.gpio_outputs(gpio_leds)
-	);
-
-	assign led = gpio_leds[23:16];
-	virtual_wire # (.PROBE_WIDTH(32), .WIDTH(0), .INSTANCE_ID("GPIO")) gpio_vw_blk (.probe(gpio_leds), .source());
+	wire [31:0] cpu_interrupt = {16'd0,
+		usb_irq,
+		ir_irq,
+		midi_irq,
+		videoin_irq,
+		ethernettx_irq,
+		ethernetrx_irq,
+		tmu_irq,
+		pfpu_irq,
+		ac97dmaw_irq,
+		ac97dmar_irq,
+		ac97crreply_irq,
+		ac97crrequest_irq,
+		timer1_irq,
+		timer0_irq,
+		gpio_irq,
+		uart_irq
+	};
 
 
 	//// UART - Debug channel
 	uart #(
-		.csr_addr (4'h2),
+		.csr_addr (4'h0),
 		.JTAG_INSTANCE_ID (0)
 	) uart_blk (
 		.sys_clk (sys_clk),
@@ -357,21 +376,29 @@ module lm32_test_top (
 		.csr_a(csr_a),
 		.csr_we(csr_we),
 		.csr_di(csr_dw),
-		.csr_do(csr_dr_jtag_uart)
+		.csr_do(csr_dr_jtag_uart),
+
+		.tx_irq (uart_irq)
 	);
 
 
 	//// System Controller
 	sysctl #(
-		.csr_addr(4'h3)
+		.csr_addr (4'h1),
+		.noutputs (8)
 	) sysctl (
 		.sys_clk(sys_clk),
 		.sys_rst(sys_rst),
 
+		.timer0_irq (timer0_irq),
+		.timer1_irq (timer1_irq),
+
 		.csr_a(csr_a),
 		.csr_we(csr_we),
 		.csr_di(csr_dw),
-		.csr_do(csr_dr_sysctl)
+		.csr_do(csr_dr_sysctl),
+
+		.gpio_outputs (led)
 	);
 
 
@@ -391,7 +418,7 @@ module lm32_test_top (
 	lm32_top cpu(
 		.clk_i (sys_clk),
 		.rst_i (sys_rst),
-		.interrupt (32'h00000000),
+		.interrupt (cpu_interrupt),
 
 		.I_ADR_O(cpuibus_adr),
 		.I_DAT_I(cpuibus_dat_r),
@@ -488,8 +515,8 @@ module lm32_test_top (
 		.csr_di(csr_dw),
 		.csr_do(csr_dr_ethernet),
 
-		.irq_rx(),
-		.irq_tx(),
+		.irq_rx(ethernetrx_irq),
+		.irq_tx(ethernettx_irq),
 
 		.wb_adr_i(eth_adr),
 		.wb_dat_o(eth_dat_r),

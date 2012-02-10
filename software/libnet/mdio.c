@@ -18,6 +18,7 @@
 
 #include <hw/minimac.h>
 #include <net/mdio.h>
+#include <hw/sysctl.h>
 
 static void delay(void)
 {
@@ -112,10 +113,10 @@ int mdio_read(int phyadr, int reg)
 // Higher level functions
 static void eth_reset_delay(void)
 {
-	volatile int count = 0;
-
-	// TODO: Use a real timer
-	for (; count <= 2000000; ++count);
+	CSR_TIMER0_COUNTER = 0;
+	CSR_TIMER0_COMPARE = CSR_FREQUENCY >> 2;
+	CSR_TIMER0_CONTROL = TIMER_ENABLE;
+	while (CSR_TIMER0_CONTROL & TIMER_ENABLE);
 }
 
 void eth_soft_reset (void)

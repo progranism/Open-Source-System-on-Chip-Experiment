@@ -36,9 +36,8 @@
 //   --------------------------------------------------------------------
 //                         FILE DETAILS
 // Project          : LatticeMico32
-// File             : lm32_multiplier.v
-// Title            : Pipelined multiplier.
-// Dependencies     : lm32_include.v
+// File             : lm32_addsub.v
+// Title            : PMI adder/subtractor.
 // Version          : 6.1.17
 //                  : Initial Release
 // Version          : 7.0SP2, 3.0
@@ -46,75 +45,51 @@
 // Version          : 3.1
 //                  : No Change
 // =============================================================================
-                  
-`include "src/lm32_include.v"
+
+`include "lm32_include.v"
 
 /////////////////////////////////////////////////////
 // Module interface
 /////////////////////////////////////////////////////
 
-module lm32_multiplier (
-    // ----- Inputs -----
-    clk_i,
-    rst_i,
-    stall_x,
-    stall_m,
-    operand_0,
-    operand_1,
-    // ----- Ouputs -----
-    result
+module lm32_addsub (
+    // ----- Inputs -------
+    DataA, 
+    DataB, 
+    Cin, 
+    Add_Sub, 
+    // ----- Outputs -------
+    Result, 
+    Cout
     );
 
 /////////////////////////////////////////////////////
 // Inputs
 /////////////////////////////////////////////////////
 
-input clk_i;                            // Clock 
-input rst_i;                            // Reset
-input stall_x;                          // Stall instruction in X stage
-input stall_m;                          // Stall instruction in M stage
-input [`LM32_WORD_RNG] operand_0;     	// Muliplicand
-input [`LM32_WORD_RNG] operand_1;     	// Multiplier
+input [31:0] DataA;
+input [31:0] DataB;
+input Cin;
+input Add_Sub;
 
 /////////////////////////////////////////////////////
 // Outputs
 /////////////////////////////////////////////////////
 
-output [`LM32_WORD_RNG] result;       	// Product of multiplication
-reg    [`LM32_WORD_RNG] result;
+output [31:0] Result;
+wire   [31:0] Result;
+output Cout;
+wire   Cout;
 
 /////////////////////////////////////////////////////
-// Internal nets and registers 
-/////////////////////////////////////////////////////
+// Instantiations
+///////////////////////////////////////////////////// 
 
-reg [`LM32_WORD_RNG] muliplicand; 
-reg [`LM32_WORD_RNG] multiplier; 
-reg [`LM32_WORD_RNG] product; 
-
-/////////////////////////////////////////////////////
-// Sequential logic
-/////////////////////////////////////////////////////
-
-always @(posedge clk_i `CFG_RESET_SENSITIVITY)
-begin
-    if (rst_i == `TRUE)
-    begin
-        muliplicand <= {`LM32_WORD_WIDTH{1'b0}};
-        multiplier <= {`LM32_WORD_WIDTH{1'b0}};
-        product <= {`LM32_WORD_WIDTH{1'b0}};
-        result <= {`LM32_WORD_WIDTH{1'b0}};
-    end
-    else
-    begin
-        if (stall_x == `FALSE)
-        begin    
-            muliplicand <= operand_0;
-            multiplier <= operand_1;
-        end
-        if (stall_m == `FALSE)
-            product <= muliplicand * multiplier;
-        result <= product;
-    end
-end
+// Modified for Milkymist: removed non-portable instantiated block
+	     wire [32:0] tmp_addResult = DataA + DataB + Cin;
+	     wire [32:0] tmp_subResult = DataA - DataB - !Cin;   
+   
+	     assign  Result = (Add_Sub == 1) ? tmp_addResult[31:0] : tmp_subResult[31:0];
+	     assign  Cout = (Add_Sub == 1) ? tmp_addResult[32] : !tmp_subResult[32];
 
 endmodule

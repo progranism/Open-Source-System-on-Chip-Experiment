@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <irq.h>
-//#include <hw/interrupts.h>
+#include <hw/interrupts.h>
 
 static console_write_hook write_hook;
 static console_read_hook read_hook;
@@ -72,10 +72,10 @@ int readchar_nonblock(void)
 
 int puts(const char *s)
 {
-	//unsigned int oldmask;
+	unsigned int oldmask;
 
-	//oldmask = irq_getmask();
-	//irq_setmask(IRQ_UART); // HACK: prevent UART data loss
+	oldmask = irq_getmask();
+	irq_setmask(IRQ_UART); // HACK: prevent UART data loss
 
 	while(*s) {
 		writechar(*s);
@@ -83,17 +83,17 @@ int puts(const char *s)
 	}
 	writechar('\n');
 	
-	//irq_setmask(oldmask);
+	irq_setmask(oldmask);
 	return 1;
 }
 
 void putsnonl(const char *s)
 {
 	static const char large_digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	//unsigned int oldmask;
+	unsigned int oldmask;
 
-	//oldmask = irq_getmask();
-	//irq_setmask(IRQ_UART); // HACK: prevent UART data loss
+	oldmask = irq_getmask();
+	irq_setmask(IRQ_UART); // HACK: prevent UART data loss
 	
 	unsigned char checksum = 'O';
 	char c;
@@ -120,7 +120,7 @@ void putsnonl(const char *s)
 		writechar(large_digits[checksum & 0xF]);
 	}
 	
-	//irq_setmask(oldmask);
+	irq_setmask(oldmask);
 }
 
 int printf(const char *fmt, ...)

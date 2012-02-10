@@ -1,6 +1,5 @@
 /*
- * Derived from Milkymist SoC (Software)
- * Copyright (C) 2012 William Heatley
+ * Milkymist SoC (Software)
  * Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,11 +17,11 @@
 
 #include <stdio.h>
 #include <crc.h>
-//#include <irq.h>
-//#include <system.h>
+#include <irq.h>
+#include <system.h>
 #include <hw/minimac.h>
-//#include <hw/sysctl.h>
-//#include <hw/interrupts.h>
+#include <hw/sysctl.h>
+#include <hw/interrupts.h>
 
 #include <net/microudp.h>
 
@@ -73,7 +72,6 @@ struct arp_frame {
 #define IP_DONT_FRAGMENT	0x4000
 #define IP_TTL			64
 #define IP_PROTO_UDP		0x11
-#define IP_PROTO_TCP		0x06
 
 struct ip_header {
 	unsigned char version;
@@ -95,42 +93,17 @@ struct udp_header {
 	unsigned short checksum;
 } __attribute__((packed));
 
-struct tcp_header {
-	unsigned short src_port;
-	unsigned short dst_port;
-	unsigned int seqno;
-	unsigned int ackno;
-	unsigned char tcpoffset;
-	unsigned char flags;
-	unsigned short wnd;
-	unsigned short tcpchksum;
-	unsigned short urgp;
-	unsigned int optdata;
-} __attribute__((packed));
-
 struct udp_frame {
-	struct udp_header header;
+	struct ip_header ip;
+	struct udp_header udp;
 	char payload[];
-} __attribute__((packed));
-
-struct tcp_frame {
-	struct tcp_header header;
-	char payload[];
-} __attribute__((packed));
-
-struct ip_frame {
-	struct ip_header header;
-	union {
-		struct tcp_frame tcp;
-		struct udp_frame udp;
-	} contents;
 } __attribute__((packed));
 
 struct ethernet_frame {
 	struct ethernet_header eth_header;
 	union {
 		struct arp_frame arp;
-		struct ip_frame ip;
+		struct udp_frame udp;
 	} contents;
 } __attribute__((packed));
 
@@ -158,10 +131,8 @@ static void send_packet(void)
 	txbuffer->raw[txlen+3] = (crc & 0xff000000) >> 24;
 	txlen += 4;
 	CSR_MINIMAC_TXCOUNT = txlen;
-	//while((irq_pending() & IRQ_ETHTX) == 0);
-	//irq_ack(IRQ_ETHTX);
-	// TODO: Use interrupts
-	while (CSR_MINIMAC_TXCOUNT != 0);	// Set to 0 once packet has been sent
+	while((irq_pending() & IRQ_ETHTX) == 0);
+	irq_ack(IRQ_ETHTX);
 }
 
 static unsigned char my_mac[6];
@@ -173,8 +144,6 @@ static unsigned int cached_ip;
 
 static void process_arp(void)
 {
-	printf ("RECEIVED ARP PACKET\n");
-
 	if(rxlen < 68) return;
 	if(rxbuffer->frame.contents.arp.hwtype != ARP_HWTYPE_ETHERNET) return;
 	if(rxbuffer->frame.contents.arp.proto != ARP_PROTO_IP) return;
@@ -220,15 +189,7 @@ int microudp_arp_resolve(unsigned int ip)
 {
 	int i;
 	int tries;
-	volatile int timeout;
-
-	// Broadcast
-	if (ip == 0xFFFFFFFF) {
-		cached_ip = ip;
-		for (i = 0; i < 6; ++i)
-			cached_mac[i] = 0xFF;
-		return 1;
-	}
+	int timeout;
 
 	if(cached_ip == ip) {
 		for(i=0;i<6;i++)
@@ -356,68 +317,28 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 }
 
 static udp_callback rx_callback;
-static tcp_callback rx_tcp_callback;
 
-static void process_udp (unsigned int src_ip, struct udp_frame *udp, int len)
+static void process_ip(void)
 {
-	if (len < sizeof (struct udp_header)) return;
-	if (udp->header.length > (len - sizeof (struct udp_header))) return;
-
-	if(rx_callback)
-		rx_callback (src_ip, udp->header.src_port, udp->header.dst_port, udp->payload, udp->header.length - sizeof (struct udp_header));
-}
-
-static void process_tcp (unsigned int src_ip, struct tcp_frame *tcp, int len)
-{
-	if (len < sizeof (struct tcp_header)) return;
-
-	unsigned int header_len = (tcp->header.tcpoffset & 0xF) << 2;
-
-	if (header_len > len) return;
-
-	unsigned char *payload = (unsigned char *)tcp;
-	payload += header_len;
-	
-	if (rx_tcp_callback)
-		rx_tcp_callback (src_ip, tcp->header.src_port, tcp->header.dst_port, payload, len - header_len);
-}
-
-static void process_ip(struct ip_frame *ip, int len)
-{
-	printf ("RECEIVED IP PACKET\n");
-
-	if (len < sizeof (struct ip_header)) return;
-	if (ip->header.total_length > len) return;
+	if(rxlen < (sizeof(struct ethernet_header)+sizeof(struct udp_frame))) return;
 	/* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely */
-	if(ip->header.version != IP_IPV4) return;
+	if(rxbuffer->frame.contents.udp.ip.version != IP_IPV4) return;
 	// check disabled for QEMU compatibility
 	//if(rxbuffer->frame.contents.udp.ip.diff_services != 0) return;
-	if(ip->header.dst_ip != 0xFFFFFFFF && ip->header.dst_ip != my_ip) return;
+	if(rxbuffer->frame.contents.udp.ip.total_length < sizeof(struct udp_frame)) return;
+	// check disabled for QEMU compatibility
+	//if(rxbuffer->frame.contents.udp.ip.fragment_offset != IP_DONT_FRAGMENT) return;
+	if(rxbuffer->frame.contents.udp.ip.proto != IP_PROTO_UDP) return;
+	if(rxbuffer->frame.contents.udp.ip.dst_ip != my_ip) return;
+	if(rxbuffer->frame.contents.udp.udp.length < sizeof(struct udp_header)) return;
 
-	if (ip->header.proto == IP_PROTO_UDP)
-		process_udp (ip->header.src_ip, &(ip->udp), ip->header.total_length - sizeof (struct ip_header));
-	else if (ip->header.proto == IP_PROTO_TCP)
-		process_tcp (&(ip->tcp), ip->header.total_length - sizeof (struct ip_header));
+	if(rx_callback)
+		rx_callback(rxbuffer->frame.contents.udp.ip.src_ip, rxbuffer->frame.contents.udp.udp.src_port, rxbuffer->frame.contents.udp.udp.dst_port, rxbuffer->frame.contents.udp.payload, rxbuffer->frame.contents.udp.udp.length-sizeof(struct udp_header));
 }
 
 void microudp_set_callback(udp_callback callback)
 {
 	rx_callback = callback;
-}
-
-void microudp_set_tcp_callback (tcp_callback callback)
-{
-	rx_tcp_callback = callback;
-}
-
-unsigned char *microudp_get_mac (void)
-{
-	return my_mac;
-}
-
-void microudp_set_ip (unsigned int ip)
-{
-	my_ip = ip;
 }
 
 static void process_frame(void)
@@ -426,36 +347,27 @@ static void process_frame(void)
 	unsigned int received_crc;
 	unsigned int computed_crc;
 
-	printf ("Packet received. Checking...\n");
-
-	if (rxlen < 13) return;
-
-	//flush_cpu_dcache();
+	flush_cpu_dcache();
 	for(i=0;i<7;i++)
-		if(rxbuffer->frame.eth_header.preamble[i] != 0x55) {
-			printf ("Bad preamble\n");
-			return;
-		}
-	if(rxbuffer->frame.eth_header.preamble[7] != 0xd5) { printf("Bad preamble d5\n"); return;}
+		if(rxbuffer->frame.eth_header.preamble[i] != 0x55) return;
+	if(rxbuffer->frame.eth_header.preamble[7] != 0xd5) return;
 	received_crc = ((unsigned int)rxbuffer->raw[rxlen-1] << 24)
 		|((unsigned int)rxbuffer->raw[rxlen-2] << 16)
 		|((unsigned int)rxbuffer->raw[rxlen-3] <<  8)
 		|((unsigned int)rxbuffer->raw[rxlen-4]);
 	computed_crc = crc32(&rxbuffer->raw[8], rxlen-12);
-	if(received_crc != computed_crc) {printf ("Bad CRC\n"); return; }
+	if(received_crc != computed_crc) return;
 
 	rxlen -= 4; /* strip CRC here to be consistent with TX */
 	if(rxbuffer->frame.eth_header.ethertype == ETHERTYPE_ARP) process_arp();
 	else if(rxbuffer->frame.eth_header.ethertype == ETHERTYPE_IP) process_ip();
-
-	printf ("Packet processed.\n");
 }
 
 void microudp_start(const unsigned char *macaddr, unsigned int ip)
 {
 	int i;
 
-	//irq_ack(IRQ_ETHRX|IRQ_ETHTX);
+	irq_ack(IRQ_ETHRX|IRQ_ETHTX);
 
 	rxbuffer0 = (ethernet_buffer *)MINIMAC_RX0_BASE;
 	rxbuffer1 = (ethernet_buffer *)MINIMAC_RX1_BASE;
@@ -478,7 +390,7 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 
 void microudp_service(void)
 {
-	//if(irq_pending() & IRQ_ETHRX) {
+	if(irq_pending() & IRQ_ETHRX) {
 		if(CSR_MINIMAC_STATE0 == MINIMAC_STATE_PENDING) {
 			rxlen = CSR_MINIMAC_COUNT0;
 			rxbuffer = rxbuffer0;
@@ -491,7 +403,7 @@ void microudp_service(void)
 			process_frame();
 			CSR_MINIMAC_STATE1 = MINIMAC_STATE_LOADED;
 		}
-		//irq_ack(IRQ_ETHRX);
-	//}
+		irq_ack(IRQ_ETHRX);
+	}
 }
 

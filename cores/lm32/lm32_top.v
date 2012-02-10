@@ -47,7 +47,7 @@
 //                  : No Change
 // =============================================================================
 
-`include "src/lm32_include.v"
+`include "lm32_include.v"
 
 /////////////////////////////////////////////////////
 // Module interface
@@ -242,7 +242,7 @@ wire trace_bret;                                // Indicates a bret instruction 
 // Functions
 /////////////////////////////////////////////////////
 
-`include "src/cores/lm32/lm32_functions.v"
+`include "cores/lm32/lm32_functions.v"
 /////////////////////////////////////////////////////
 // Instantiations
 ///////////////////////////////////////////////////// 

@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-`include "src/lm32_include.v"
+`include "lm32_include.v"
 
 module monitor (
 	input sys_clk,

@@ -53,7 +53,7 @@
 //                  : in System-Verilog.
 // =============================================================================
 
-`include "src/lm32_include.v"
+`include "lm32_include.v"
 
 // Index of opcode field in an instruction
 `define LM32_OPCODE_RNG         31:26

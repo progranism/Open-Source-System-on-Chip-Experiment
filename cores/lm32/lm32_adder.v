@@ -36,8 +36,8 @@
 //   --------------------------------------------------------------------
 //                         FILE DETAILS
 // Project          : LatticeMico32
-// File             : lm32_logic_op.v
-// Title            : Logic operations (and / or / not etc)
+// File             : lm32_adder.v
+// Title            : Integer adder / subtractor with comparison flag generation 
 // Dependencies     : lm32_include.v
 // Version          : 6.1.17
 //                  : Initial Release
@@ -47,50 +47,89 @@
 //                  : No Change
 // =============================================================================
 
-`include "src/lm32_include.v"
+`include "lm32_include.v"
 
 /////////////////////////////////////////////////////
 // Module interface
 /////////////////////////////////////////////////////
 
-module lm32_logic_op (
+module lm32_adder (
     // ----- Inputs -------
-    logic_op_x,
+    adder_op_x,
+    adder_op_x_n,
     operand_0_x,
     operand_1_x,
     // ----- Outputs -------
-    logic_result_x
+    adder_result_x,
+    adder_carry_n_x,
+    adder_overflow_x
     );
 
 /////////////////////////////////////////////////////
 // Inputs
 /////////////////////////////////////////////////////
 
-input [`LM32_LOGIC_OP_RNG] logic_op_x;
-input [`LM32_WORD_RNG] operand_0_x;
-input [`LM32_WORD_RNG] operand_1_x;
+input adder_op_x;                                       // Operating to perform, 0 for addition, 1 for subtraction
+input adder_op_x_n;                                     // Inverted version of adder_op_x
+input [`LM32_WORD_RNG] operand_0_x;                     // Operand to add, or subtract from
+input [`LM32_WORD_RNG] operand_1_x;                     // Opearnd to add, or subtract by
 
 /////////////////////////////////////////////////////
 // Outputs
 /////////////////////////////////////////////////////
 
-output [`LM32_WORD_RNG] logic_result_x;
-reg    [`LM32_WORD_RNG] logic_result_x;
+output [`LM32_WORD_RNG] adder_result_x;                 // Result of addition or subtraction
+wire   [`LM32_WORD_RNG] adder_result_x;
+output adder_carry_n_x;                                 // Inverted carry
+wire   adder_carry_n_x;
+output adder_overflow_x;                                // Indicates if overflow occured, only valid for subtractions
+reg    adder_overflow_x;
     
 /////////////////////////////////////////////////////
 // Internal nets and registers 
 /////////////////////////////////////////////////////
 
-integer logic_idx;
+wire a_sign;                                            // Sign (i.e. positive or negative) of operand 0
+wire b_sign;                                            // Sign of operand 1
+wire result_sign;                                       // Sign of result
+
+/////////////////////////////////////////////////////
+// Instantiations 
+/////////////////////////////////////////////////////
+
+lm32_addsub addsub (
+    // ----- Inputs -----
+    .DataA          (operand_0_x), 
+    .DataB          (operand_1_x), 
+    .Cin            (adder_op_x), 
+    .Add_Sub        (adder_op_x_n), 
+    // ----- Ouputs -----
+    .Result         (adder_result_x), 
+    .Cout           (adder_carry_n_x)
+    );
 
 /////////////////////////////////////////////////////
 // Combinational Logic
 /////////////////////////////////////////////////////
 
+// Extract signs of operands and result
+
+assign a_sign = operand_0_x[`LM32_WORD_WIDTH-1];
+assign b_sign = operand_1_x[`LM32_WORD_WIDTH-1];
+assign result_sign = adder_result_x[`LM32_WORD_WIDTH-1];
+
+// Determine whether an overflow occured when performing a subtraction
+
 always @(*)
-begin
-    for(logic_idx = 0; logic_idx < `LM32_WORD_WIDTH; logic_idx = logic_idx + 1)
-        logic_result_x[logic_idx] = logic_op_x[{operand_1_x[logic_idx], operand_0_x[logic_idx]}];
+begin    
+    //  +ve - -ve = -ve -> overflow
+    //  -ve - +ve = +ve -> overflow
+    if  (   (!a_sign & b_sign & result_sign)
+         || (a_sign & !b_sign & !result_sign)
+        )
+        adder_overflow_x = `TRUE;
+    else
+        adder_overflow_x = `FALSE;
 end
     
 endmodule

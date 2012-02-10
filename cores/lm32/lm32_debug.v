@@ -50,7 +50,7 @@
 //                  : watchpoints is zero.
 // =============================================================================
 
-`include "src/lm32_include.v"
+`include "lm32_include.v"
 
 `ifdef CFG_DEBUG_ENABLED
 

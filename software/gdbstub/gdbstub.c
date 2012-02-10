@@ -1,6 +1,5 @@
 /*
  * Milkymist SoC
- * Copyright (C) 2012 William Heatley
  * Copyright (c) 2011 Michael Walle
  * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
  * Copyright (C) Linus Torvalds and Linux kernel developers
@@ -19,16 +18,18 @@
 
 #include <stdlib.h>
 
-#include <irq.h>
+#include <base/irq.h>
 #include <hw/uart.h>
-//#include <hw/interrupts.h>
-//#include <hw/gpio.h>
+#include <hw/interrupts.h>
+#include <hw/gpio.h>
 #include <hw/sysctl.h>
 
 #define SUPPORT_P_CMD 1
 #define SUPPORT_X_CMD 1
 #define SUPPORT_Z_CMD 1
 #define SUPPORT_Q_CMD 1
+
+#define GDBSTUB_UART_SPEED 115200
 
 /* see crt0.S */
 extern void clear_bss(void);
@@ -110,27 +111,16 @@ static int memcmp(const void *cs, const void *ct, size_t count)
 
 static char get_debug_char(void)
 {
-	char c;
-
-	// Wait buffer to fill
-	while (CSR_UART_RX == 0);
-	
-	// Read byte
-	c = CSR_UART_RX;
-
-	// Clear buffer
-	CSR_UART_RX = 0;
-	
-	return c;
+    while (!(CSR_UART_STAT & UART_STAT_RX_EVT));
+    CSR_UART_STAT = UART_STAT_RX_EVT;
+    return (char)CSR_UART_RXTX;
 }
 
 static void put_debug_char(char c)
 {
-	// Wait for buffer to clear
-	while (CSR_UART_TX != 0);
-
-	// Write byte
-	CSR_UART_TX = c | 0x100;
+    CSR_UART_RXTX = c;
+    /* loop on THRE, TX_EVT must not be cleared */
+    while (!(CSR_UART_STAT & UART_STAT_THRE));
 }
 
 /*
@@ -637,7 +627,7 @@ do_set_clear_hw_watchpoint:
 
 static void cmd_reset(void)
 {
-    //CSR_SYSTEM_ID = 1;
+    CSR_SYSTEM_ID = 1;
 }
 
 #ifdef SUPPORT_P_CMD
@@ -682,9 +672,9 @@ static void cmd_query(void)
  */
 void handle_exception(unsigned int *registers)
 {
-    //unsigned int stat;
-    //unsigned int uart_div;
-    //unsigned int dbg_ctrl;
+    unsigned int stat;
+    unsigned int uart_div;
+    unsigned int dbg_ctrl;
 
     /*
      * make sure break is disabled.
@@ -694,7 +684,7 @@ void handle_exception(unsigned int *registers)
      * applications should disable debug exceptions before jumping to debug
      * ROM.
      */
-    //CSR_UART_DEBUG = 0;
+    CSR_UART_DEBUG = 0;
 
     /* clear BSS there was a board reset */
     if (!CSR_DBG_SCRATCHPAD) {
@@ -703,18 +693,18 @@ void handle_exception(unsigned int *registers)
     }
 
     /* disable bus errors */
-    //dbg_ctrl = CSR_DBG_CTRL;
-    //CSR_DBG_CTRL = 0;
+    dbg_ctrl = CSR_DBG_CTRL;
+    CSR_DBG_CTRL = 0;
 
     /* wait until TX transaction is finished. If there was a transmission in
      * progress, the event bit will be set. In this case, the gdbstub won't clear
      * it after it is terminated. */
-    //while(!(CSR_UART_STAT & UART_STAT_THRE));
-    //stat = CSR_UART_STAT;
+    while(!(CSR_UART_STAT & UART_STAT_THRE));
+    stat = CSR_UART_STAT;
 
     /* save UART divider and set own speed */
-    //uart_div = CSR_UART_DIVISOR;
-    //CSR_UART_DIVISOR = CSR_FREQUENCY / 16 / GDBSTUB_UART_SPEED;
+    uart_div = CSR_UART_DIVISOR;
+    CSR_UART_DIVISOR = CSR_FREQUENCY / 16 / GDBSTUB_UART_SPEED;
 
     /* reply to host that an exception has occured */
     if (gdb_connected) {
@@ -790,15 +780,15 @@ out:
     flush_cache();
 
     /* clear TX event if there was no transmission in progress */
-    //CSR_UART_STAT = stat & UART_STAT_TX_EVT;
+    CSR_UART_STAT = stat & UART_STAT_TX_EVT;
 
     /* restore UART divider */
-    //CSR_UART_DIVISOR = uart_div;
+    CSR_UART_DIVISOR = uart_div;
 
     /* restore dbg control register */
-    //CSR_DBG_CTRL = dbg_ctrl;
+    CSR_DBG_CTRL = dbg_ctrl;
 
     /* reenable break */
-    //CSR_UART_DEBUG = UART_DEBUG_BREAK_EN;
+    CSR_UART_DEBUG = UART_DEBUG_BREAK_EN;
 }
 

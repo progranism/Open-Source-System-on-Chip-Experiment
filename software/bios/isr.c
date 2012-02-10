@@ -15,26 +15,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __HW_UART_H
-#define __HW_UART_H
+#include <hw/interrupts.h>
+#include <irq.h>
+#include <uart.h>
 
-#include <hw/common.h>
+//#include <hal/usb.h>
+//#include <hal/tmu.h>
 
-#define CSR_UART_RXTX 		MMPTR(0xe0000000)
-#define CSR_UART_DIVISOR	MMPTR(0xe0000004)
-#define CSR_UART_STAT		MMPTR(0xe0000008)
-#define CSR_UART_CTRL		MMPTR(0xe000000c)
-#define CSR_UART_DEBUG		MMPTR(0xe0000010)
+void isr(void)
+{
+	unsigned int irqs;
 
-#define UART_STAT_THRE		(0x1)
-#define UART_STAT_RX_EVT	(0x2)
-#define UART_STAT_TX_EVT	(0x4)
+	irqs = irq_pending() & irq_getmask();
 
-#define UART_CTRL_RX_INT	(0x1)
-#define UART_CTRL_TX_INT	(0x2)
-#define UART_CTRL_THRU		(0x4)
+	if(irqs & IRQ_UART)
+		uart_isr();
+		
+	//if(irqs & IRQ_TMU)
+	//	tmu_isr();
 
-#define UART_DEBUG_BREAK_EN	(0x1)
-
-#endif /* __HW_UART_H */
+	//if(irqs & IRQ_USB)
+	//	usb_isr();
+}
 
